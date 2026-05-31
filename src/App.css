@@ -1,0 +1,843 @@
+/* ========================
+   CSS Variables / Design Tokens
+   ======================== */
+:root {
+  --color-bg: #FAFAF8;
+  --color-surface: #FFFFFF;
+  --color-text: #1a1a18;
+  --color-muted: #8B8B86;
+  --color-accent: #D4A574;
+  --color-support: #5DADE2;
+  --color-success: #27AE60;
+  --color-border: #E8E8E5;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-md: 0 8px 16px rgba(0,0,0,0.1);
+  --font-system: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+}
+
+/* ========================
+   Reset & Base
+   ======================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-system);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-size: 1rem;
+  line-height: 1.8;
+  min-height: 100vh;
+}
+
+/* ========================
+   App Shell
+   ======================== */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 1.5rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-logo {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+
+.app-logo span {
+  color: var(--color-accent);
+}
+
+.app-main {
+  flex: 1;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 3rem 2rem 4rem;
+}
+
+/* ========================
+   Progress Bar
+   ======================== */
+.progress-bar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 3rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.progress-step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.progress-step__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-border);
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.progress-step__dot--filled {
+  background: var(--color-text);
+}
+
+.progress-step__dot--active {
+  background: var(--color-accent);
+}
+
+.progress-step__label {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.progress-step__label--active {
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.progress-step__label--filled {
+  color: var(--color-text);
+}
+
+.progress-connector {
+  width: 24px;
+  height: 1px;
+  background: var(--color-border);
+  flex-shrink: 0;
+  margin: 0 0.25rem;
+}
+
+.progress-connector--filled {
+  background: var(--color-text);
+}
+
+/* ========================
+   Step Layout
+   ======================== */
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.step-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.step-number {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.step-title {
+  font-size: 1.8rem;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--color-text);
+}
+
+.step-subtitle {
+  font-size: 1rem;
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+
+.step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ========================
+   Navigation
+   ======================== */
+.step-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 2rem;
+  border-top: 1px solid var(--color-border);
+  margin-top: 1rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-weight: 500;
+  font-family: var(--font-system);
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.btn-primary {
+  background: var(--color-text);
+  color: #FFFFFF;
+}
+
+.btn-primary:hover {
+  background: #2d2d2b;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:disabled {
+  background: var(--color-border);
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover {
+  color: var(--color-text);
+  border-color: var(--color-text);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-muted);
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.btn-ghost:hover {
+  color: var(--color-text);
+}
+
+.btn-accent {
+  background: var(--color-accent);
+  color: #FFFFFF;
+}
+
+.btn-accent:hover {
+  background: #c4955f;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ========================
+   Form Elements
+   ======================== */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.form-input {
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-family: var(--font-system);
+  color: var(--color-text);
+  background: var(--color-surface);
+  transition: border-color 0.15s;
+  outline: none;
+}
+
+.form-input:focus {
+  border-color: var(--color-text);
+}
+
+.form-input::placeholder {
+  color: var(--color-muted);
+}
+
+/* ========================
+   Teaching Tooltip
+   ======================== */
+.teaching-tooltip {
+  border-radius: var(--radius-sm);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.teaching-tooltip--warm {
+  background: #FFF9E6;
+  border: 1px solid var(--color-accent);
+}
+
+.teaching-tooltip--cool {
+  background: #F0F8FF;
+  border: 1px solid var(--color-support);
+}
+
+.teaching-tooltip__icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.teaching-tooltip__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.teaching-tooltip__title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.teaching-tooltip__body {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+  line-height: 1.6;
+}
+
+/* ========================
+   Preset Cards (Step 2)
+   ======================== */
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+
+.preset-card {
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.preset-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.preset-card--selected {
+  border-color: var(--color-accent);
+}
+
+.preset-card__swatches {
+  display: flex;
+  gap: 0.5rem;
+  height: 40px;
+}
+
+.preset-card__swatch {
+  flex: 1;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.preset-card__name {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.preset-card__desc {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+.preset-card__audience {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.preset-card__selected-badge {
+  font-size: 0.8rem;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* ========================
+   Tag / Chip UI (Step 3)
+   ======================== */
+.tag-input-area {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 56px;
+  cursor: text;
+  transition: border-color 0.15s;
+}
+
+.tag-input-area:focus-within {
+  border-color: var(--color-text);
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 100px;
+  padding: 0.2rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.tag-chip__remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-muted);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tag-chip__remove:hover {
+  color: var(--color-text);
+}
+
+.tag-inline-input {
+  border: none;
+  outline: none;
+  font-size: 0.9rem;
+  font-family: var(--font-system);
+  color: var(--color-text);
+  background: transparent;
+  min-width: 120px;
+  flex: 1;
+}
+
+.tag-inline-input::placeholder {
+  color: var(--color-muted);
+}
+
+.tag-hint {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+}
+
+/* ========================
+   Color Palette (Step 4)
+   ======================== */
+.palette-display {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.palette-swatch-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 120px;
+}
+
+.palette-swatch {
+  height: 80px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.palette-swatch-label {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.palette-swatch-hex {
+  font-size: 0.75rem;
+  color: var(--color-text);
+  font-family: monospace;
+  text-align: center;
+}
+
+.color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.color-picker-row label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  flex: 1;
+}
+
+.color-picker-row input[type="color"] {
+  width: 44px;
+  height: 44px;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: none;
+}
+
+.color-picker-preview {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(0,0,0,0.1);
+  flex-shrink: 0;
+}
+
+/* ========================
+   Sections (Step 5)
+   ======================== */
+.sections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.section-checkbox-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: var(--shadow-sm);
+  user-select: none;
+}
+
+.section-checkbox-card:hover {
+  border-color: var(--color-text);
+}
+
+.section-checkbox-card--checked {
+  border-color: var(--color-accent);
+  background: #FFFAF5;
+}
+
+.section-checkbox-card input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.section-checkbox-card__label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+/* ========================
+   Image Selection (Step 6)
+   ======================== */
+.image-section-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.image-section-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+}
+
+.image-cards-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.image-card {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+
+.image-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.image-card--selected {
+  border-color: var(--color-accent);
+}
+
+.image-card__placeholder {
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-card__label {
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.image-card__name {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.image-card__swap {
+  font-size: 0.75rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-support);
+  font-family: var(--font-system);
+  padding: 0;
+}
+
+.image-card__swap:hover {
+  color: var(--color-text);
+}
+
+/* ========================
+   Mood Board Preview (Step 7)
+   ======================== */
+.moodboard-preview {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.moodboard-preview__header {
+  padding: 2rem;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.moodboard-preview__title {
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.moodboard-preview__body {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.moodboard-section-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-muted);
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.moodboard-palette-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.moodboard-palette-swatch {
+  flex: 1;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+.moodboard-typography {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+}
+
+.moodboard-type-heading {
+  font-size: 1.8rem;
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.moodboard-type-body {
+  font-size: 1rem;
+  line-height: 1.8;
+  color: var(--color-muted);
+}
+
+.moodboard-type-caption {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.moodboard-images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.moodboard-image-card {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.moodboard-image-placeholder {
+  height: 100px;
+}
+
+.moodboard-image-caption {
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  background: var(--color-surface);
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.export-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ========================
+   Done Screen (Step 8)
+   ======================== */
+.done-screen {
+  text-align: center;
+  padding: 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rem;
+}
+
+.done-icon {
+  width: 72px;
+  height: 72px;
+  background: #F0FFF6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.done-title {
+  font-size: 2rem;
+  font-weight: 300;
+  color: var(--color-text);
+}
+
+.done-subtitle {
+  font-size: 1rem;
+  color: var(--color-muted);
+  max-width: 400px;
+}
+
+.done-summary {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem 2rem;
+  text-align: left;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.done-summary__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.9rem;
+  gap: 1rem;
+}
+
+.done-summary__key {
+  color: var(--color-muted);
+  flex-shrink: 0;
+}
+
+.done-summary__value {
+  color: var(--color-text);
+  font-weight: 500;
+  text-align: right;
+}
+
+.done-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
