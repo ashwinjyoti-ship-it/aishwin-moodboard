@@ -36,7 +36,7 @@ export default function Step5Sections({ state, onUpdate, onNext, onBack }: Props
   return (
     <div className="step">
       <div className="step-header">
-        <span className="step-number">Step 5 of 8</span>
+        <span className="step-number">Step 6 of 9</span>
         <h1 className="step-title">Choose your sections</h1>
         <p className="step-subtitle">
           Select the pages sections you want to include in your mood board.

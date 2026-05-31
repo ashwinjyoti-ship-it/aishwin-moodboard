@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "workers:dev": "wrangler dev functions/index.js --port 8787",
+    "workers:deploy": "wrangler deploy",
+    "db:init": "wrangler d1 execute mood-projects --file migrations/001_create_projects.sql",
+    "db:init:prod": "wrangler d1 execute mood-projects-prod --file migrations/001_create_projects.sql"
   },
   "dependencies": {
     "react": "^18.2.0",

@@ -4,6 +4,7 @@ const STEPS = [
   'Project name',
   'Design direction',
   'Inspiration',
+  'Keywords',
   'Colors',
   'Sections',
   'Images',

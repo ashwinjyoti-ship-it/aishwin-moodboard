@@ -41,7 +41,7 @@ export default function Step3Keywords({ state, onUpdate, onNext, onBack }: Props
   return (
     <div className="step">
       <div className="step-header">
-        <span className="step-number">Step 3 of 8</span>
+        <span className="step-number">Step 4 of 9</span>
         <h1 className="step-title">Describe the vibe</h1>
         <p className="step-subtitle">
           Add 3–5 keywords that capture the feeling you want. Press Enter or comma to add each one.

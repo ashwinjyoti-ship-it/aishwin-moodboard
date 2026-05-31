@@ -1,4 +1,3 @@
-
 import { WizardState } from '../../types';
 import { presets, getPresetById } from '../../data/presets';
 import StepNav from '../StepNav';
@@ -17,6 +16,8 @@ export default function Step2DesignDirection({ state, onUpdate, onNext, onBack }
     onUpdate({
       presetId: id,
       accentColor: preset ? preset.colors.accent : state.accentColor,
+      primaryColor: preset ? preset.colors.primary : state.primaryColor,
+      secondaryColor: preset ? preset.colors.secondary : state.secondaryColor,
     });
   }
 
@@ -25,7 +26,7 @@ export default function Step2DesignDirection({ state, onUpdate, onNext, onBack }
   return (
     <div className="step">
       <div className="step-header">
-        <span className="step-number">Step 2 of 8</span>
+        <span className="step-number">Step 2 of 9</span>
         <h1 className="step-title">Choose your design direction</h1>
         <p className="step-subtitle">
           Each preset defines a visual world — choose the one that resonates with your brand.
@@ -40,32 +41,21 @@ export default function Step2DesignDirection({ state, onUpdate, onNext, onBack }
               <button
                 key={preset.id}
                 type="button"
-                className={`preset-card${selected ? ' preset-card--selected' : ''}`}
+                className={`preset-card${selected ? ' selected' : ''}`}
                 onClick={() => selectPreset(preset.id)}
                 aria-pressed={selected}
               >
-                <div className="preset-card__swatches">
-                  <div
-                    className="preset-card__swatch"
-                    style={{ background: preset.colors.primary }}
-                  />
-                  <div
-                    className="preset-card__swatch"
-                    style={{ background: preset.colors.secondary }}
-                  />
-                  <div
-                    className="preset-card__swatch"
-                    style={{ background: preset.colors.accent }}
-                  />
-                </div>
-                <div>
-                  <div className="preset-card__name">{preset.name}</div>
-                  <div className="preset-card__desc">{preset.description}</div>
-                  <div className="preset-card__audience">{preset.audience}</div>
-                </div>
                 {selected && (
-                  <div className="preset-card__selected-badge">✓ Selected</div>
+                  <div className="preset-checkmark">✓</div>
                 )}
+                <div className="preset-swatches">
+                  <div className="preset-swatch" style={{ background: preset.colors.primary, border: '1px solid rgba(0,0,0,0.1)' }} />
+                  <div className="preset-swatch" style={{ background: preset.colors.secondary, border: '1px solid rgba(0,0,0,0.1)' }} />
+                  <div className="preset-swatch" style={{ background: preset.colors.accent, border: '1px solid rgba(0,0,0,0.1)' }} />
+                </div>
+                <div className="preset-name">{preset.name}</div>
+                <div className="preset-desc">{preset.description}</div>
+                <div className="preset-audience">{preset.audience}</div>
               </button>
             );
           })}
