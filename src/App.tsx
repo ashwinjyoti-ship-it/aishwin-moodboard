@@ -32,7 +32,7 @@ function WizardApp() {
         {step === 6 && <Step5Sections {...stepProps} />}
         {step === 7 && <Step6Images {...stepProps} />}
         {step === 8 && <Step7Generate {...stepProps} />}
-        {step === 9 && <Step8Done state={state} onRestart={onRestart} />}
+        {step === 9 && <Step8Done onRestart={onRestart} />}
       </main>
     </div>
   );
