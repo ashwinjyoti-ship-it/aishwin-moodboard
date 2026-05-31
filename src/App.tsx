@@ -3,6 +3,7 @@ import { WizardState, SectionId } from './types';
 import ProgressBar from './components/ProgressBar';
 import Step1ProjectName from './components/steps/Step1ProjectName';
 import Step2DesignDirection from './components/steps/Step2DesignDirection';
+import Step3Inspiration from './components/steps/Step3Inspiration';
 import Step3Keywords from './components/steps/Step3Keywords';
 import Step4Colors from './components/steps/Step4Colors';
 import Step5Sections from './components/steps/Step5Sections';
@@ -15,7 +16,10 @@ const DEFAULT_STATE: WizardState = {
   businessType: '',
   presetId: '',
   accentColor: '#D4A574',
+  primaryColor: '#FAFAF8',
+  secondaryColor: '#1a1a18',
   keywords: [],
+  inspirationImages: [],
   sections: ['hero', 'about', 'services', 'contact'] as SectionId[],
   imageSelections: {
     hero: 0,
@@ -38,7 +42,7 @@ export default function App() {
   }
 
   function onNext() {
-    setStep((s) => Math.min(s + 1, 8));
+    setStep((s) => Math.min(s + 1, 9));
   }
 
   function onBack() {
@@ -67,12 +71,13 @@ export default function App() {
         <ProgressBar currentStep={step} />
         {step === 1 && <Step1ProjectName {...stepProps} />}
         {step === 2 && <Step2DesignDirection {...stepProps} />}
-        {step === 3 && <Step3Keywords {...stepProps} />}
-        {step === 4 && <Step4Colors {...stepProps} />}
-        {step === 5 && <Step5Sections {...stepProps} />}
-        {step === 6 && <Step6Images {...stepProps} />}
-        {step === 7 && <Step7Generate {...stepProps} />}
-        {step === 8 && <Step8Done state={state} onRestart={onRestart} />}
+        {step === 3 && <Step3Inspiration {...stepProps} />}
+        {step === 4 && <Step3Keywords {...stepProps} />}
+        {step === 5 && <Step4Colors {...stepProps} />}
+        {step === 6 && <Step5Sections {...stepProps} />}
+        {step === 7 && <Step6Images {...stepProps} />}
+        {step === 8 && <Step7Generate {...stepProps} />}
+        {step === 9 && <Step8Done state={state} onRestart={onRestart} />}
       </main>
     </div>
   );

@@ -124,7 +124,7 @@ export default function Step7Generate({ state, onNext, onBack }: Props) {
   return (
     <div className="step">
       <div className="step-header">
-        <span className="step-number">Step 7 of 8</span>
+        <span className="step-number">Step 8 of 9</span>
         <h1 className="step-title">Your mood board is ready</h1>
         <p className="step-subtitle">
           Here's your design direction at a glance. Download it or continue to finish.

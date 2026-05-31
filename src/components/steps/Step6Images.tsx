@@ -35,12 +35,12 @@ export default function Step6Images({ state, onUpdate, onNext, onBack }: Props) 
     });
   }
 
-  const progressPct = Math.round((6 / 8) * 100);
+  const progressPct = Math.round((7 / 9) * 100);
 
   return (
     <div className="step">
       <div className="step-header">
-        <span className="step-number">Step 6 of 8</span>
+        <span className="step-number">Step 7 of 9</span>
         <h1 className="step-title">Review &amp; refine images</h1>
         <p className="step-subtitle">
           Choose the image direction for each section. Swap to cycle through alternatives.

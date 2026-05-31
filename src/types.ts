@@ -25,7 +25,10 @@ export interface WizardState {
   businessType: string;
   presetId: string;
   accentColor: string;
+  primaryColor: string;
+  secondaryColor: string;
   keywords: string[];
   sections: SectionId[];
   imageSelections: Record<SectionId, number>;
+  inspirationImages: Array<{ type: 'file'; url: string; name: string } | { type: 'url'; url: string }>;
 }
