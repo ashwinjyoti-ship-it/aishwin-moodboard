@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
-import { WizardState, SectionId } from '../types';
+import { WizardState } from '../types';
 
 const SESSION_KEY = 'mb_session_id';
 
@@ -34,11 +34,8 @@ const DEFAULT_STATE: WizardState = {
   secondaryColor: '#1a1a18',
   keywords: [],
   inspirationImages: [],
-  sections: ['hero', 'about', 'services', 'contact'] as SectionId[],
-  imageSelections: {
-    hero: 0, about: 0, services: 0, testimonials: 0,
-    gallery: 0, team: 0, contact: 0, pricing: 0,
-  },
+  sections: [],
+  imageSelections: {},
 };
 
 export function ProjectProvider({ children }: { children: ReactNode }) {

@@ -111,6 +111,80 @@ export default {
         return json({ results: placeholders, query: q });
       }
 
+      // POST /api/suggest-sections
+      if (path === '/api/suggest-sections' && request.method === 'POST') {
+        const { category, presetId } = await request.json();
+        const suggestions = getSectionSuggestions(category, presetId);
+        return json(suggestions);
+      }
+
+      // POST /api/fetch-images
+      if (path === '/api/fetch-images' && request.method === 'POST') {
+        const { sections } = await request.json();
+        const apiKey = env.UNSPLASH_API_KEY;
+
+        if (!apiKey) {
+          const results = {};
+          for (const section of sections) {
+            results[section.id] = {
+              success: true,
+              images: Array.from({ length: section.count }, (_, i) => ({
+                id: `placeholder-${section.id}-${i}`,
+                url: null,
+                thumb: null,
+                alt: section.query,
+                photographer: 'Unsplash',
+                photographerUrl: 'https://unsplash.com',
+                unsplashUrl: 'https://unsplash.com',
+                placeholder: true,
+              })),
+            };
+          }
+          return json(results);
+        }
+
+        const { createApi } = await import('unsplash-js');
+        const unsplash = createApi({ accessKey: apiKey, fetch: globalThis.fetch });
+        const results = {};
+
+        for (const section of sections) {
+          try {
+            const response = await unsplash.search.getPhotos({
+              query: section.query,
+              page: section.page ?? 1,
+              perPage: section.count,
+              orderBy: 'relevant',
+            });
+
+            if (response.errors || !response.response) {
+              results[section.id] = {
+                success: false,
+                message: 'Failed to fetch images',
+                images: [],
+              };
+            } else {
+              results[section.id] = {
+                success: true,
+                images: response.response.results.map(photo => ({
+                  id: photo.id,
+                  url: photo.urls.regular,
+                  thumb: photo.urls.small,
+                  alt: photo.alt_description || section.name,
+                  photographer: photo.user.name,
+                  photographerUrl: `https://unsplash.com/@${photo.user.username}`,
+                  unsplashUrl: `https://unsplash.com/photos/${photo.id}`,
+                  placeholder: false,
+                })),
+              };
+            }
+          } catch (err) {
+            results[section.id] = { success: false, message: err.message, images: [] };
+          }
+        }
+
+        return json(results);
+      }
+
       // POST /api/generate-moodboard
       if (path === '/api/generate-moodboard' && request.method === 'POST') {
         const body = await request.json();
@@ -198,4 +272,74 @@ ${sectionsHTML}
 </div>
 </body>
 </html>`;
+}
+
+function getSectionSuggestions(category, presetId) {
+  const cat = (category || '').toLowerCase().replace(/[^a-z]/g, '');
+  const preset = (presetId || '').toLowerCase();
+
+  const isCalm = preset.includes('serene') || preset.includes('sage') || preset.includes('lavender') || preset.includes('rose');
+  const isBold = preset.includes('bold') || preset.includes('golden') || preset.includes('coral') || preset.includes('forest');
+  const isDark = preset.includes('navy') || preset.includes('dark') || preset.includes('forest');
+
+  const modifier = isCalm ? 'calm serene natural light' : isBold ? 'dynamic energetic vibrant' : isDark ? 'dramatic moody professional' : 'professional clean modern';
+
+  const maps = {
+    yoga:       [
+      { name: 'Yoga Studio', query: `yoga studio spacious natural light ${modifier}`, count: 3 },
+      { name: 'Meditation', query: `meditation mindfulness peaceful ${modifier}`, count: 3 },
+      { name: 'Classes', query: `yoga class group studio instructor ${modifier}`, count: 3 },
+      { name: 'Wellness', query: `wellness spa retreat ${modifier}`, count: 3 },
+    ],
+    personaltraining: [
+      { name: 'Personal Training', query: `personal trainer gym workout ${modifier}`, count: 3 },
+      { name: 'Strength & Conditioning', query: `strength training weights fitness ${modifier}`, count: 3 },
+      { name: 'Transformation', query: `fitness transformation body health ${modifier}`, count: 3 },
+      { name: 'Nutrition', query: `healthy food nutrition meal prep ${modifier}`, count: 3 },
+    ],
+    physiotherapy: [
+      { name: 'Rehabilitation', query: `physiotherapy rehabilitation clinic ${modifier}`, count: 3 },
+      { name: 'Manual Therapy', query: `physical therapy hands treatment ${modifier}`, count: 3 },
+      { name: 'Recovery', query: `recovery stretch mobility healing ${modifier}`, count: 3 },
+      { name: 'Clinical Space', query: `modern clinic clean medical space ${modifier}`, count: 3 },
+    ],
+    spabeauty: [
+      { name: 'Spa Experience', query: `spa luxury relaxation treatment ${modifier}`, count: 3 },
+      { name: 'Facials', query: `facial skin care beauty treatment ${modifier}`, count: 3 },
+      { name: 'Massage', query: `massage therapy relaxing ${modifier}`, count: 3 },
+      { name: 'Ambience', query: `spa interior candles calm luxury ${modifier}`, count: 3 },
+    ],
+    pilates: [
+      { name: 'Pilates Studio', query: `pilates studio reformer equipment ${modifier}`, count: 3 },
+      { name: 'Mat Classes', query: `pilates mat class core workout ${modifier}`, count: 3 },
+      { name: 'Body & Mind', query: `body awareness balance flexibility ${modifier}`, count: 3 },
+    ],
+    mentalwellness: [
+      { name: 'Therapy Space', query: `therapy counselling calm office ${modifier}`, count: 3 },
+      { name: 'Mindfulness', query: `mindfulness meditation breathing ${modifier}`, count: 3 },
+      { name: 'Support', query: `mental health wellbeing care ${modifier}`, count: 3 },
+    ],
+    sportsperformance: [
+      { name: 'Athletic Training', query: `athlete performance training sport ${modifier}`, count: 3 },
+      { name: 'Strength', query: `strength power weights elite sport ${modifier}`, count: 3 },
+      { name: 'Recovery', query: `sports recovery ice bath compression ${modifier}`, count: 3 },
+    ],
+    dancestudio: [
+      { name: 'Dance Classes', query: `dance studio class movement ${modifier}`, count: 3 },
+      { name: 'Performance', query: `dance performance stage artistic ${modifier}`, count: 3 },
+      { name: 'Community', query: `dance community group joy ${modifier}`, count: 3 },
+    ],
+  };
+
+  // Fuzzy match category
+  const key = Object.keys(maps).find(k => cat.includes(k) || k.includes(cat));
+  const base = key ? maps[key] : [
+    { name: 'Hero', query: `wellness health professional ${modifier}`, count: 3 },
+    { name: 'Services', query: `health services professional clinic ${modifier}`, count: 3 },
+    { name: 'Team', query: `professional team healthcare ${modifier}`, count: 3 },
+    { name: 'Environment', query: `modern studio space interior ${modifier}`, count: 3 },
+  ];
+
+  // Add id to each section
+  return base.map((s, i) => ({ ...s, id: `section-${i}`, images: [], approved: false }));
 }

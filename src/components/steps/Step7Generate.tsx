@@ -15,16 +15,25 @@ function generateHTML(state: WizardState): string {
   const secondary = preset?.colors.secondary ?? '#1a1a18';
   const accent = state.accentColor;
 
-  const sectionsHTML = state.sections.map((s) => `
-    <div class="mb-section">
-      <h3 class="mb-section-label">${s.charAt(0).toUpperCase() + s.slice(1)}</h3>
-      <div class="mb-images">
+  const sectionsHTML = state.sections.map((s) => {
+    const label = s.name;
+    const imgs = s.images.length > 0
+      ? s.images.map(img => img.url
+          ? `<div class="mb-image"><img src="${img.url}" alt="${img.alt || label}" style="width:100%;height:100%;object-fit:cover;border-radius:8px"/></div>`
+          : `<div class="mb-image" style="background:linear-gradient(135deg,${primary},${accent}22)"></div>`
+        ).join('')
+      : `
         <div class="mb-image" style="background: linear-gradient(135deg, ${primary}, ${accent}22)"></div>
         <div class="mb-image" style="background: linear-gradient(135deg, ${accent}22, ${secondary}22)"></div>
         <div class="mb-image" style="background: linear-gradient(135deg, ${secondary}11, ${primary})"></div>
-      </div>
+      `;
+    return `
+    <div class="mb-section">
+      <h3 class="mb-section-label">${label}</h3>
+      <div class="mb-images">${imgs}</div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -187,12 +196,21 @@ export default function Step7Generate({ state, onNext, onBack }: Props) {
               <div className="moodboard-section-title">Sections</div>
               <div className="moodboard-images-grid">
                 {state.sections.map((s) => (
-                  <div key={s} className="moodboard-image-card">
-                    <div
-                      className="moodboard-image-placeholder"
-                      style={{ background: `linear-gradient(135deg, ${primary}, ${accent}33)` }}
-                    />
-                    <div className="moodboard-image-caption">{s}</div>
+                  <div key={s.id} className="moodboard-image-card">
+                    {s.images.length > 0 && s.images[0].url ? (
+                      <img
+                        src={s.images[0].thumb || s.images[0].url}
+                        alt={s.name}
+                        className="moodboard-image-placeholder"
+                        style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                      />
+                    ) : (
+                      <div
+                        className="moodboard-image-placeholder"
+                        style={{ background: `linear-gradient(135deg, ${primary}, ${accent}33)` }}
+                      />
+                    )}
+                    <div className="moodboard-image-caption">{s.name}</div>
                   </div>
                 ))}
               </div>

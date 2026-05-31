@@ -11,14 +11,28 @@ export interface ColorPreset {
 }
 
 export type SectionId =
-  | 'hero'
-  | 'about'
-  | 'services'
-  | 'testimonials'
-  | 'gallery'
-  | 'team'
-  | 'contact'
-  | 'pricing';
+  | 'hero' | 'about' | 'services' | 'testimonials'
+  | 'gallery' | 'team' | 'contact' | 'pricing';
+
+export interface UnsplashPhoto {
+  id: string;
+  url: string;
+  thumb: string;
+  alt: string;
+  photographer: string;
+  photographerUrl: string;
+  unsplashUrl: string;
+  placeholder?: boolean;
+}
+
+export interface Section {
+  id: string;          // uuid or slugified name
+  name: string;
+  query: string;
+  count: number;       // 3–5
+  images: UnsplashPhoto[];
+  approved: boolean;
+}
 
 export interface WizardState {
   projectName: string;
@@ -28,7 +42,7 @@ export interface WizardState {
   primaryColor: string;
   secondaryColor: string;
   keywords: string[];
-  sections: SectionId[];
-  imageSelections: Record<SectionId, number>;
   inspirationImages: Array<{ type: 'file'; url: string; name: string } | { type: 'url'; url: string }>;
+  sections: Section[];
+  imageSelections: Record<string, number>; // kept for backwards compat
 }
