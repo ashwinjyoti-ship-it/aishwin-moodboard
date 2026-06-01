@@ -1,6 +1,5 @@
-
-import { WizardState, SectionId } from '../../types';
-
+import { useState, useEffect, useCallback } from 'react';
+import { WizardState, Section, UnsplashPhoto } from '../../types';
 import StepNav from '../StepNav';
 import TeachingTooltip from '../TeachingTooltip';
 
@@ -11,39 +10,81 @@ interface Props {
   onBack: () => void;
 }
 
-const IMAGE_VARIANTS = 3;
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
-const SECTION_GRADIENTS: Record<string, string[]> = {
-  hero:         ['linear-gradient(135deg,#e8f4fd,#bdd7ee)', 'linear-gradient(135deg,#fde8e8,#f0b8b8)', 'linear-gradient(135deg,#e8fde8,#b8e8b8)'],
-  about:        ['linear-gradient(135deg,#fdf5e8,#e8d5b0)', 'linear-gradient(135deg,#f0e8fd,#d5b8f0)', 'linear-gradient(135deg,#e8fdf5,#b0e8d5)'],
-  services:     ['linear-gradient(135deg,#fde8f5,#f0b8d5)', 'linear-gradient(135deg,#e8f0fd,#b8cdf0)', 'linear-gradient(135deg,#fdf0e8,#f0d0b8)'],
-  testimonials: ['linear-gradient(135deg,#f5fde8,#d5f0b0)', 'linear-gradient(135deg,#fde8e8,#f0b8b8)', 'linear-gradient(135deg,#e8e8fd,#b8b8f0)'],
-  gallery:      ['linear-gradient(135deg,#fde8f0,#f0b8c8)', 'linear-gradient(135deg,#e8fde8,#b8f0b8)', 'linear-gradient(135deg,#fde8e8,#f0c8b8)'],
-  team:         ['linear-gradient(135deg,#e8f5fd,#b8d5f0)', 'linear-gradient(135deg,#fdf0e8,#f0d5b8)', 'linear-gradient(135deg,#f0fde8,#d5f0b8)'],
-  contact:      ['linear-gradient(135deg,#fde8fd,#f0b8f0)', 'linear-gradient(135deg,#e8fdf5,#b8f0d5)', 'linear-gradient(135deg,#fdf5e8,#f0e0b8)'],
-  pricing:      ['linear-gradient(135deg,#e8e8e8,#c8c8c8)', 'linear-gradient(135deg,#fde8e8,#f0c8b8)', 'linear-gradient(135deg,#e8f0fd,#b8cce8)'],
-};
+type SectionImages = Record<string, { success: boolean; images: UnsplashPhoto[]; message?: string }>;
 
 export default function Step6Images({ state, onUpdate, onNext, onBack }: Props) {
-  function swap(sectionId: SectionId) {
-    const current = state.imageSelections[sectionId] ?? 0;
-    onUpdate({
-      imageSelections: {
-        ...state.imageSelections,
-        [sectionId]: (current + 1) % IMAGE_VARIANTS,
-      },
-    });
+  const [imageMap, setImageMap] = useState<SectionImages>({});
+  const [loading, setLoading] = useState(false);
+  const [swapping, setSwapping] = useState<string | null>(null);
+  const [swapPages, setSwapPages] = useState<Record<string, number>>({});
+
+  const fetchImages = useCallback(async (sectionsToFetch: Section[], pageOverrides: Record<string, number> = {}) => {
+    setLoading(true);
+    try {
+      const payload = sectionsToFetch.map(s => ({
+        ...s,
+        page: pageOverrides[s.id] ?? 1,
+      }));
+      const res = await fetch(`${API_BASE}/api/fetch-images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sections: payload }),
+      });
+      const data: SectionImages = await res.json();
+      setImageMap(prev => ({ ...prev, ...data }));
+    } catch {
+      // leave existing state on error
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (state.sections.length > 0) {
+      fetchImages(state.sections);
+    }
+  }, []);
+
+  async function handleSwap(section: Section) {
+    setSwapping(section.id);
+    const nextPage = (swapPages[section.id] ?? 1) + 1;
+    setSwapPages(prev => ({ ...prev, [section.id]: nextPage }));
+    try {
+      const res = await fetch(`${API_BASE}/api/fetch-images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sections: [{ ...section, page: nextPage }] }),
+      });
+      const data: SectionImages = await res.json();
+      setImageMap(prev => ({ ...prev, ...data }));
+    } finally {
+      setSwapping(null);
+    }
+  }
+
+  function handleNext() {
+    // Merge fetched images back into sections state
+    const updatedSections = state.sections.map(s => ({
+      ...s,
+      images: imageMap[s.id]?.images ?? s.images,
+      approved: true,
+    }));
+    onUpdate({ sections: updatedSections });
+    onNext();
   }
 
   const progressPct = Math.round((7 / 9) * 100);
+  const hasAnyImages = Object.values(imageMap).some(v => v.images.length > 0);
 
   return (
     <div className="step">
       <div className="step-header">
         <span className="step-number">Step 7 of 9</span>
-        <h1 className="step-title">Review &amp; refine images</h1>
+        <h1 className="step-title">Review &amp; approve images</h1>
         <p className="step-subtitle">
-          Choose the image direction for each section. Swap to cycle through alternatives.
+          Approve your mood board images. Hit Swap ↻ on any to fetch fresh alternatives.
         </p>
       </div>
 
@@ -53,52 +94,86 @@ export default function Step6Images({ state, onUpdate, onNext, onBack }: Props) 
       <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '2rem', textAlign: 'right' }}>{progressPct}% complete</p>
 
       <div className="step-body">
-        {state.sections.map((sectionId) => {
-          const selected = state.imageSelections[sectionId] ?? 0;
-          const gradients = SECTION_GRADIENTS[sectionId] ?? ['linear-gradient(135deg,#eee,#ccc)', 'linear-gradient(135deg,#dde,#bbc)', 'linear-gradient(135deg,#ded,#bcb)'];
+        {loading && !hasAnyImages && (
+          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-muted)' }}>
+            Fetching images from Unsplash…
+          </div>
+        )}
+
+        {state.sections.map(section => {
+          const result = imageMap[section.id];
+          const isSwapping = swapping === section.id;
 
           return (
-            <div key={sectionId} className="image-section-group">
-              <div className="image-section-title">{sectionId}</div>
-              <div className="image-cards-row">
-                {Array.from({ length: IMAGE_VARIANTS }).map((_, i) => {
-                  const isSelected = selected === i;
-                  return (
-                    <div
-                      key={i}
-                      className={`image-card${isSelected ? ' image-card--selected' : ''}`}
-                      onClick={() => onUpdate({ imageSelections: { ...state.imageSelections, [sectionId]: i } })}
-                    >
-                      <div
-                        className="image-card__placeholder"
-                        style={{ background: gradients[i] }}
-                      />
-                      <div className="image-card__label">
-                        <span className="image-card__name">Option {i + 1}</span>
-                        <button
-                          type="button"
-                          className="image-card__swap"
-                          onClick={(e) => { e.stopPropagation(); swap(sectionId); }}
+            <div key={section.id} className="image-section-group">
+              <div className="image-section-title">{section.name}</div>
+
+              {!result && (
+                <div style={{ color: 'var(--color-muted)', fontSize: '0.9rem' }}>Loading…</div>
+              )}
+
+              {result && !result.success && (
+                <div style={{ padding: '0.75rem 1rem', background: '#fff3f3', borderRadius: '8px', color: '#c0392b', fontSize: '0.9rem' }}>
+                  {result.message || 'Failed to load images'}
+                </div>
+              )}
+
+              {result?.success && (
+                <div className="image-cards-row">
+                  {result.images.map((img, i) => (
+                    <div key={img.id || i} className="image-card">
+                      {img.placeholder || !img.url ? (
+                        <div
+                          className="image-card__placeholder"
+                          style={{ background: `linear-gradient(135deg, ${state.primaryColor}cc, ${state.accentColor}44)` }}
                         >
-                          Swap ↻
-                        </button>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>No API key</span>
+                        </div>
+                      ) : (
+                        <img
+                          src={img.thumb}
+                          alt={img.alt}
+                          className="image-card__photo"
+                          loading="lazy"
+                        />
+                      )}
+                      <div className="image-card__label">
+                        <a
+                          href={img.photographerUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="image-card__credit"
+                          title={`Photo by ${img.photographer} on Unsplash`}
+                        >
+                          📸 {img.photographer}
+                        </a>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ marginTop: '0.75rem', fontSize: '0.85rem', padding: '0.4rem 1rem' }}
+                onClick={() => handleSwap(section)}
+                disabled={isSwapping}
+              >
+                {isSwapping ? 'Fetching…' : 'Swap all ↻'}
+              </button>
             </div>
           );
         })}
 
         <TeachingTooltip
           variant="cool"
-          title="Principle: Reference Images Build Trust"
-          body="Real people, real spaces — even as placeholders — communicate credibility. Every image should reinforce your preset's mood. Cohesion here is what separates intentional design from random assemblage."
+          title="Principle 4: Reference Images Build Trust"
+          body="Real people, real spaces = credibility. Notice how these images feel cohesive? That's intentional selection, not random. Every image reinforces your preset's mood."
         />
       </div>
 
-      <StepNav onBack={onBack} onNext={onNext} nextLabel="Generate Mood Board →" />
+      <StepNav onBack={onBack} onNext={handleNext} nextLabel="Generate Mood Board →" />
     </div>
   );
 }
