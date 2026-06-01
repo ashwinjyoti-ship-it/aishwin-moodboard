@@ -1242,3 +1242,31 @@ body {
   gap: 0.5rem;
   justify-content: flex-end;
 }
+
+/* ── Mobile responsiveness (375px+) ─────────────────────────────── */
+@media (max-width: 768px) {
+  .app-main { padding: 1.5rem 1rem; }
+  .step-header { margin-bottom: 1.5rem; }
+  .step-title { font-size: 1.6rem; }
+  .category-grid { gap: 0.5rem; }
+  .image-cards-row { grid-template-columns: repeat(2, 1fr); }
+  .export-option { flex-wrap: wrap; gap: 0.75rem; }
+  .export-option > .btn { width: 100%; }
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .moodboard-images-grid { grid-template-columns: repeat(2, 1fr); }
+  .moodboard-palette-row { gap: 0.5rem; }
+  .inspiration-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  body { font-size: 15px; }
+  .app-main { padding: 1rem 0.75rem; }
+  .step-title { font-size: 1.4rem; }
+  .image-cards-row { grid-template-columns: 1fr; }
+  .inspiration-grid { grid-template-columns: repeat(2, 1fr); }
+  .color-swatch-editor { flex-wrap: wrap; justify-content: center; }
+  .section-edit-card__row { flex-wrap: wrap; }
+  .export-option { padding: 1rem; }
+  .moodboard-images-grid { grid-template-columns: 1fr; }
+  .btn { font-size: 0.9rem; }
+}
