@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { WizardState } from '../../types';
 import StepNav from '../StepNav';
 import TeachingTooltip from '../TeachingTooltip';
+import { useClaude } from '../../hooks/useClaude';
 
 interface Props {
   state: WizardState;
@@ -14,16 +15,48 @@ export default function Step3Inspiration({ state, onUpdate, onNext, onBack }: Pr
   const [urlInput, setUrlInput] = useState('');
   const [urlError, setUrlError] = useState('');
   const [dragOver, setDragOver] = useState(false);
+  const [analysedImageUrl, setAnalysedImageUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingFileRef = useRef<File | null>(null);
+
+  const { analyzeImage, analysis, loading: analysisLoading } = useClaude();
 
   const images = state.inspirationImages;
   const maxReached = images.length >= 6;
+
+  // Trigger analysis when a new image is the first one added
+  useEffect(() => {
+    if (images.length === 0) return;
+    const latest = images[images.length - 1];
+
+    // Only analyse if this image hasn't been analysed yet
+    if (latest.url === analysedImageUrl) return;
+
+    setAnalysedImageUrl(latest.url);
+
+    if (pendingFileRef.current) {
+      analyzeImage(pendingFileRef.current);
+      pendingFileRef.current = null;
+    } else if (latest.type === 'url') {
+      analyzeImage(latest.url);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [images]);
 
   function addFileImages(files: FileList | null) {
     if (!files) return;
     const remaining = 6 - images.length;
     const newImages: WizardState['inspirationImages'] = [];
-    Array.from(files).slice(0, remaining).forEach((file) => {
+    const fileArray = Array.from(files).slice(0, remaining);
+
+    // Store the first new file for analysis (only analyse one)
+    if (fileArray.length > 0 && images.length === 0) {
+      pendingFileRef.current = fileArray[0];
+    } else if (fileArray.length > 0) {
+      pendingFileRef.current = fileArray[0];
+    }
+
+    fileArray.forEach((file) => {
       const url = URL.createObjectURL(file);
       newImages.push({ type: 'file', url, name: file.name });
     });
@@ -57,6 +90,25 @@ export default function Step3Inspiration({ state, onUpdate, onNext, onBack }: Pr
     const updated = images.filter((_, i) => i !== index);
     onUpdate({ inspirationImages: updated });
   }
+
+  function applyColors() {
+    if (!analysis || analysis.colors.length === 0) return;
+    const [accent, primary, secondary] = analysis.colors;
+    const patch: Partial<WizardState> = { accentColor: accent };
+    if (primary) patch.primaryColor = primary;
+    if (secondary) patch.secondaryColor = secondary;
+
+    // Merge mood words into keywords (deduplicated)
+    if (analysis.mood.length > 0) {
+      const existing = new Set(state.keywords.map(k => k.toLowerCase()));
+      const newKeywords = analysis.mood.filter(m => !existing.has(m.toLowerCase()));
+      patch.keywords = [...state.keywords, ...newKeywords];
+    }
+
+    onUpdate(patch);
+  }
+
+  const showAnalysis = (analysis && analysis.mood.length > 0) || analysisLoading;
 
   return (
     <div className="step">
@@ -140,10 +192,62 @@ export default function Step3Inspiration({ state, onUpdate, onNext, onBack }: Pr
           </div>
         )}
 
+        {/* Analysis card */}
+        {showAnalysis && (
+          <div className="analysis-card">
+            {analysisLoading ? (
+              <div className="analysis-loading">
+                <div className="analysis-spinner" />
+                <span>Analysing your inspiration...</span>
+              </div>
+            ) : analysis && analysis.mood.length > 0 ? (
+              <>
+                <p className="analysis-card__label">AI detected mood</p>
+                <div className="analysis-chips">
+                  {analysis.mood.map((word) => (
+                    <span key={word} className="analysis-chip">{word}</span>
+                  ))}
+                </div>
+
+                {analysis.colors.length > 0 && (
+                  <>
+                    <p className="analysis-card__label" style={{ marginTop: '1rem' }}>Dominant colours</p>
+                    <div className="analysis-swatches">
+                      {analysis.colors.map((hex) => (
+                        <div
+                          key={hex}
+                          className="analysis-swatch"
+                          style={{ background: hex }}
+                          title={hex}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  className="btn btn-accent"
+                  style={{ marginTop: '1.25rem' }}
+                  onClick={applyColors}
+                >
+                  Apply colours to my palette
+                </button>
+
+                {analysis.placeholder && (
+                  <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>
+                    Using example values — image analysis unavailable.
+                  </p>
+                )}
+              </>
+            ) : null}
+          </div>
+        )}
+
         <TeachingTooltip
           variant="cool"
-          title="Design Principle: Reference Before You Create"
-          body="Designers always gather visual references before they start. These images train your eye and align your team on the aesthetic. No reference = no shared vision."
+          title="Principle: Reference Before You Create"
+          body="AI just read the mood of your inspiration. These extracted colours and descriptors are now your design brief — the starting point for everything else."
         />
       </div>
 

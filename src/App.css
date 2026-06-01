@@ -1048,6 +1048,76 @@ select.form-input {
 }
 
 /* ========================
+   Analysis Card (Step 3)
+   ======================== */
+.analysis-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+}
+
+.analysis-card__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--color-muted);
+  margin-bottom: 0.75rem;
+}
+
+.analysis-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+
+.analysis-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-support);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.analysis-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.analysis-chip {
+  display: inline-block;
+  padding: 0.25rem 0.875rem;
+  border-radius: 100px;
+  border: 1px solid var(--color-support);
+  color: var(--color-support);
+  font-size: 0.85rem;
+  background: transparent;
+}
+
+.analysis-swatches {
+  display: flex;
+  gap: 0.625rem;
+}
+
+.analysis-swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.08);
+  cursor: default;
+}
+
+/* ========================
    Color Swatch Editor (Step 5)
    ======================== */
 .color-swatch-editor {
