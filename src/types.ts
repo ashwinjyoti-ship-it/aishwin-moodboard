@@ -36,6 +36,7 @@ export interface Section {
 
 export interface WizardState {
   projectName: string;
+  industry: string;
   businessType: string;
   presetId: string;
   accentColor: string;
