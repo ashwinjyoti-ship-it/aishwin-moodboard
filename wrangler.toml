@@ -1,22 +1,11 @@
-name = "aishwin-moodboard"
+name = "mood-board"
 main = "functions/index.js"
-compatibility_date = "2025-01-30"
-
-[env.production]
-name = "aishwin-moodboard-prod"
+compatibility_date = "2026-05-31"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "mood-projects"
-database_id = "placeholder-replace-after-wrangler-d1-create"
-
-[[env.production.d1_databases]]
-binding = "DB"
-database_name = "mood-projects-prod"
-database_id = "placeholder-prod-replace-after-wrangler-d1-create"
+database_id = "97075942-c155-4a21-a11f-433dbda9d1aa"
 
 [vars]
-ENVIRONMENT = "development"
-
-[env.production.vars]
 ENVIRONMENT = "production"
