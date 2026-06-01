@@ -73,7 +73,7 @@ function generateHTML(state: WizardState): string {
 <body>
   <div class="container">
     <h1>${state.projectName || 'Your Project'}</h1>
-    <p class="subtitle">${state.businessType ? state.businessType + ' — ' : ''}Mood Board &amp; Design Direction</p>
+    <p class="subtitle">${state.businessTypes.length > 0 ? state.businessTypes.join(' · ') + ' — ' : ''}Mood Board &amp; Design Direction</p>
 
     <p class="section-title">Colour Palette — ${preset?.name ?? ''}</p>
     <div class="palette">
@@ -126,7 +126,7 @@ async function downloadZIP(state: WizardState) {
 
   const meta = {
     projectName: state.projectName,
-    businessType: state.businessType,
+    businessTypes: state.businessTypes,
     presetId: state.presetId,
     accentColor: state.accentColor,
     primaryColor: state.primaryColor,
@@ -184,7 +184,7 @@ export default function Step7Generate({ state, onNext, onBack }: Props) {
     try {
       await saveProject({
         name: state.projectName || 'Untitled',
-        category: state.businessType,
+        category: state.businessTypes.join(', '),
         presetName: state.presetId,
         projectData: {
           paletteColors: {

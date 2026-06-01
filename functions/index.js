@@ -87,13 +87,84 @@ export default {
         return json({ ok: true });
       }
 
-      // POST /api/analyze-image — TODO Phase 3: call Claude Vision
+      // POST /api/analyze-image — Claude Vision
       if (path === '/api/analyze-image' && request.method === 'POST') {
-        return json({
-          mood: ['serene', 'professional', 'natural light'],
-          colors: ['#F5F3F0', '#5DADE2', '#D4A574'],
-          placeholder: true,
-        });
+        try {
+          const apiKey = env.CLAUDE_API_KEY;
+          if (!apiKey) {
+            return json({ mood: ['serene', 'professional', 'natural'], colors: ['#F5F3F0', '#5DADE2', '#D4A574'], placeholder: true });
+          }
+
+          let imageBase64;
+          let mediaType = 'image/jpeg';
+          const contentType = request.headers.get('content-type') || '';
+
+          if (contentType.includes('application/json')) {
+            const body = await request.json();
+            const imageUrl = body.url;
+            const imageRes = await fetch(imageUrl);
+            if (!imageRes.ok) throw new Error('Failed to fetch image URL');
+            const respContentType = imageRes.headers.get('content-type') || 'image/jpeg';
+            mediaType = respContentType.split(';')[0].trim();
+            const buffer = await imageRes.arrayBuffer();
+            imageBase64 = bufferToBase64(buffer);
+          } else {
+            const formData = await request.formData();
+            const file = formData.get('file');
+            if (!file) throw new Error('No file provided');
+            mediaType = file.type || 'image/jpeg';
+            const buffer = await file.arrayBuffer();
+            imageBase64 = bufferToBase64(buffer);
+          }
+
+          // Normalise media type to Claude-supported values
+          const supportedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+          if (!supportedTypes.includes(mediaType)) mediaType = 'image/jpeg';
+
+          const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'x-api-key': apiKey,
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'claude-haiku-4-5-20251001',
+              max_tokens: 256,
+              messages: [{
+                role: 'user',
+                content: [
+                  {
+                    type: 'image',
+                    source: { type: 'base64', media_type: mediaType, data: imageBase64 },
+                  },
+                  {
+                    type: 'text',
+                    text: 'Analyse this image for design mood boarding. Return ONLY valid JSON with two fields: "mood" (array of 3-5 single descriptive words capturing the emotional tone, e.g. serene, minimal, warm) and "colors" (array of 3-5 dominant hex colour codes). No explanation, just JSON.',
+                  },
+                ],
+              }],
+            }),
+          });
+
+          if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
+          const claudeData = await claudeRes.json();
+          const text = claudeData.content?.[0]?.text || '';
+
+          // Extract JSON from response (strip any markdown code fences if present)
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) throw new Error('No JSON in Claude response');
+          const parsed = JSON.parse(jsonMatch[0]);
+
+          return json({
+            mood: Array.isArray(parsed.mood) ? parsed.mood.slice(0, 5) : [],
+            colors: Array.isArray(parsed.colors) ? parsed.colors.slice(0, 5) : [],
+            placeholder: false,
+          });
+        } catch (analysisErr) {
+          // Graceful fallback — don't block the user
+          return json({ mood: ['natural', 'calm', 'balanced'], colors: ['#F5F3F0', '#5DADE2', '#D4A574'], placeholder: true });
+        }
       }
 
       // GET /api/search-unsplash — TODO Phase 3: call Unsplash API
@@ -113,8 +184,12 @@ export default {
 
       // POST /api/suggest-sections
       if (path === '/api/suggest-sections' && request.method === 'POST') {
-        const { category, presetId } = await request.json();
-        const suggestions = getSectionSuggestions(category, presetId);
+        const body = await request.json();
+        // Accept either categories[] (new) or category string (legacy)
+        const categories = Array.isArray(body.categories)
+          ? body.categories
+          : body.category ? [body.category] : [];
+        const suggestions = getSectionSuggestions(categories, body.presetId);
         return json(suggestions);
       }
 
@@ -274,8 +349,17 @@ ${sectionsHTML}
 </html>`;
 }
 
-function getSectionSuggestions(category, presetId) {
-  const cat = (category || '').toLowerCase().replace(/[^a-z]/g, '');
+function bufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+function getSectionSuggestions(categories, presetId) {
+  // categories is string[] (may be empty or contain a single freetext entry for "Other")
   const preset = (presetId || '').toLowerCase();
 
   const isCalm = preset.includes('serene') || preset.includes('sage') || preset.includes('lavender') || preset.includes('rose');
@@ -285,7 +369,7 @@ function getSectionSuggestions(category, presetId) {
   const modifier = isCalm ? 'calm serene natural light' : isBold ? 'dynamic energetic vibrant' : isDark ? 'dramatic moody professional' : 'professional clean modern';
 
   const maps = {
-    yoga:       [
+    yoga: [
       { name: 'Yoga Studio', query: `yoga studio spacious natural light ${modifier}`, count: 3 },
       { name: 'Meditation', query: `meditation mindfulness peaceful ${modifier}`, count: 3 },
       { name: 'Classes', query: `yoga class group studio instructor ${modifier}`, count: 3 },
@@ -329,17 +413,62 @@ function getSectionSuggestions(category, presetId) {
       { name: 'Performance', query: `dance performance stage artistic ${modifier}`, count: 3 },
       { name: 'Community', query: `dance community group joy ${modifier}`, count: 3 },
     ],
+    chiropractice: [
+      { name: 'Chiropractic Care', query: `chiropractic clinic spine treatment ${modifier}`, count: 3 },
+      { name: 'Pain Relief', query: `back pain relief treatment professional ${modifier}`, count: 3 },
+      { name: 'Posture & Wellness', query: `posture wellness spinal health ${modifier}`, count: 3 },
+    ],
+    holistichealth: [
+      { name: 'Holistic Studio', query: `holistic health natural wellness studio ${modifier}`, count: 3 },
+      { name: 'Treatments', query: `holistic treatment acupuncture natural ${modifier}`, count: 3 },
+      { name: 'Community', query: `wellness community retreat health ${modifier}`, count: 3 },
+    ],
+    corporatewellness: [
+      { name: 'Workplace Wellness', query: `corporate wellness office health programme ${modifier}`, count: 3 },
+      { name: 'Team Health', query: `team fitness corporate gym health ${modifier}`, count: 3 },
+      { name: 'Mindfulness at Work', query: `office mindfulness stress relief workspace ${modifier}`, count: 3 },
+    ],
+    nutritiondietetics: [
+      { name: 'Nutrition Consultation', query: `nutritionist dietitian consultation ${modifier}`, count: 3 },
+      { name: 'Healthy Food', query: `healthy meal prep nutrition food ${modifier}`, count: 3 },
+      { name: 'Wellness Plan', query: `diet plan healthy lifestyle wellness ${modifier}`, count: 3 },
+    ],
   };
 
-  // Fuzzy match category
-  const key = Object.keys(maps).find(k => cat.includes(k) || k.includes(cat));
-  const base = key ? maps[key] : [
+  const defaultSections = [
     { name: 'Hero', query: `wellness health professional ${modifier}`, count: 3 },
     { name: 'Services', query: `health services professional clinic ${modifier}`, count: 3 },
     { name: 'Team', query: `professional team healthcare ${modifier}`, count: 3 },
     { name: 'Environment', query: `modern studio space interior ${modifier}`, count: 3 },
   ];
 
-  // Add id to each section
-  return base.map((s, i) => ({ ...s, id: `section-${i}`, images: [], approved: false }));
+  // For each selected category, fuzzy-match to a map key and take top 2 sections.
+  // Deduplicate by section name, cap at 8 total.
+  const seen = new Set();
+  const result = [];
+
+  const cats = (categories || []).filter(Boolean);
+
+  for (const category of cats) {
+    const cat = category.toLowerCase().replace(/[^a-z]/g, '');
+    const key = Object.keys(maps).find(k => cat.includes(k) || k.includes(cat));
+    const pool = key ? maps[key] : defaultSections;
+
+    for (const s of pool.slice(0, 2)) {
+      const nameKey = s.name.toLowerCase();
+      if (!seen.has(nameKey)) {
+        seen.add(nameKey);
+        result.push(s);
+      }
+      if (result.length >= 8) break;
+    }
+    if (result.length >= 8) break;
+  }
+
+  // Fallback: no categories matched at all
+  if (result.length === 0) {
+    return defaultSections.map((s, i) => ({ ...s, id: `section-${i}`, images: [], approved: false }));
+  }
+
+  return result.map((s, i) => ({ ...s, id: `section-${i}`, images: [], approved: false }));
 }

@@ -25,7 +25,7 @@ export default function Step5Sections({ state, onUpdate, onNext, onBack }: Props
     fetch(`${API_BASE}/api/suggest-sections`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category: state.businessType, presetId: state.presetId }),
+      body: JSON.stringify({ categories: state.businessTypes, presetId: state.presetId }),
     })
       .then(r => r.json())
       .then((data: Section[]) => {

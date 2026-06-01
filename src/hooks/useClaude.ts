@@ -13,34 +13,39 @@ export function useClaude() {
   const { sessionId } = useProject();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<ImageAnalysis | null>(null);
 
   async function analyzeImage(file: File | string): Promise<ImageAnalysis | null> {
     setLoading(true);
     setError(null);
     try {
-      const body = typeof file === 'string'
-        ? JSON.stringify({ url: file })
-        : await (async () => {
-            const fd = new FormData();
-            fd.append('file', file);
-            return fd;
-          })();
+      let body: BodyInit;
+      let headers: Record<string, string>;
 
-      const res = await fetch(`${API_BASE}/api/analyze-image`, {
-        method: 'POST',
-        headers: typeof file === 'string'
-          ? { 'Content-Type': 'application/json', 'x-session-id': sessionId }
-          : { 'x-session-id': sessionId },
-        body,
-      });
-      return await res.json();
-    } catch (e) {
+      if (typeof file === 'string') {
+        body = JSON.stringify({ url: file });
+        headers = { 'Content-Type': 'application/json', 'x-session-id': sessionId };
+      } else {
+        const fd = new FormData();
+        fd.append('file', file);
+        body = fd;
+        headers = { 'x-session-id': sessionId };
+      }
+
+      const res = await fetch(`${API_BASE}/api/analyze-image`, { method: 'POST', headers, body });
+      if (!res.ok) throw new Error('Analysis request failed');
+      const result: ImageAnalysis = await res.json();
+      setAnalysis(result);
+      return result;
+    } catch {
       setError('Analysis failed');
-      return null;
+      const fallback: ImageAnalysis = { mood: [], colors: [], placeholder: true };
+      setAnalysis(fallback);
+      return fallback;
     } finally {
       setLoading(false);
     }
   }
 
-  return { analyzeImage, loading, error };
+  return { analyzeImage, analysis, loading, error };
 }
