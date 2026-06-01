@@ -28,7 +28,7 @@ const ProjectContext = createContext<ProjectContextValue | null>(null);
 const DEFAULT_STATE: WizardState = {
   projectName: '',
   industry: '',
-  businessType: '',
+  businessTypes: [],
   presetId: '',
   accentColor: '#D4A574',
   primaryColor: '#FAFAF8',

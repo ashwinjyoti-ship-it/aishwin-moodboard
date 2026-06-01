@@ -184,8 +184,12 @@ export default {
 
       // POST /api/suggest-sections
       if (path === '/api/suggest-sections' && request.method === 'POST') {
-        const { category, presetId } = await request.json();
-        const suggestions = getSectionSuggestions(category, presetId);
+        const body = await request.json();
+        // Accept either categories[] (new) or category string (legacy)
+        const categories = Array.isArray(body.categories)
+          ? body.categories
+          : body.category ? [body.category] : [];
+        const suggestions = getSectionSuggestions(categories, body.presetId);
         return json(suggestions);
       }
 
@@ -354,8 +358,8 @@ function bufferToBase64(buffer) {
   return btoa(binary);
 }
 
-function getSectionSuggestions(category, presetId) {
-  const cat = (category || '').toLowerCase().replace(/[^a-z]/g, '');
+function getSectionSuggestions(categories, presetId) {
+  // categories is string[] (may be empty or contain a single freetext entry for "Other")
   const preset = (presetId || '').toLowerCase();
 
   const isCalm = preset.includes('serene') || preset.includes('sage') || preset.includes('lavender') || preset.includes('rose');
@@ -365,7 +369,7 @@ function getSectionSuggestions(category, presetId) {
   const modifier = isCalm ? 'calm serene natural light' : isBold ? 'dynamic energetic vibrant' : isDark ? 'dramatic moody professional' : 'professional clean modern';
 
   const maps = {
-    yoga:       [
+    yoga: [
       { name: 'Yoga Studio', query: `yoga studio spacious natural light ${modifier}`, count: 3 },
       { name: 'Meditation', query: `meditation mindfulness peaceful ${modifier}`, count: 3 },
       { name: 'Classes', query: `yoga class group studio instructor ${modifier}`, count: 3 },
@@ -409,17 +413,62 @@ function getSectionSuggestions(category, presetId) {
       { name: 'Performance', query: `dance performance stage artistic ${modifier}`, count: 3 },
       { name: 'Community', query: `dance community group joy ${modifier}`, count: 3 },
     ],
+    chiropractice: [
+      { name: 'Chiropractic Care', query: `chiropractic clinic spine treatment ${modifier}`, count: 3 },
+      { name: 'Pain Relief', query: `back pain relief treatment professional ${modifier}`, count: 3 },
+      { name: 'Posture & Wellness', query: `posture wellness spinal health ${modifier}`, count: 3 },
+    ],
+    holistichealth: [
+      { name: 'Holistic Studio', query: `holistic health natural wellness studio ${modifier}`, count: 3 },
+      { name: 'Treatments', query: `holistic treatment acupuncture natural ${modifier}`, count: 3 },
+      { name: 'Community', query: `wellness community retreat health ${modifier}`, count: 3 },
+    ],
+    corporatewellness: [
+      { name: 'Workplace Wellness', query: `corporate wellness office health programme ${modifier}`, count: 3 },
+      { name: 'Team Health', query: `team fitness corporate gym health ${modifier}`, count: 3 },
+      { name: 'Mindfulness at Work', query: `office mindfulness stress relief workspace ${modifier}`, count: 3 },
+    ],
+    nutritiondietetics: [
+      { name: 'Nutrition Consultation', query: `nutritionist dietitian consultation ${modifier}`, count: 3 },
+      { name: 'Healthy Food', query: `healthy meal prep nutrition food ${modifier}`, count: 3 },
+      { name: 'Wellness Plan', query: `diet plan healthy lifestyle wellness ${modifier}`, count: 3 },
+    ],
   };
 
-  // Fuzzy match category
-  const key = Object.keys(maps).find(k => cat.includes(k) || k.includes(cat));
-  const base = key ? maps[key] : [
+  const defaultSections = [
     { name: 'Hero', query: `wellness health professional ${modifier}`, count: 3 },
     { name: 'Services', query: `health services professional clinic ${modifier}`, count: 3 },
     { name: 'Team', query: `professional team healthcare ${modifier}`, count: 3 },
     { name: 'Environment', query: `modern studio space interior ${modifier}`, count: 3 },
   ];
 
-  // Add id to each section
-  return base.map((s, i) => ({ ...s, id: `section-${i}`, images: [], approved: false }));
+  // For each selected category, fuzzy-match to a map key and take top 2 sections.
+  // Deduplicate by section name, cap at 8 total.
+  const seen = new Set();
+  const result = [];
+
+  const cats = (categories || []).filter(Boolean);
+
+  for (const category of cats) {
+    const cat = category.toLowerCase().replace(/[^a-z]/g, '');
+    const key = Object.keys(maps).find(k => cat.includes(k) || k.includes(cat));
+    const pool = key ? maps[key] : defaultSections;
+
+    for (const s of pool.slice(0, 2)) {
+      const nameKey = s.name.toLowerCase();
+      if (!seen.has(nameKey)) {
+        seen.add(nameKey);
+        result.push(s);
+      }
+      if (result.length >= 8) break;
+    }
+    if (result.length >= 8) break;
+  }
+
+  // Fallback: no categories matched at all
+  if (result.length === 0) {
+    return defaultSections.map((s, i) => ({ ...s, id: `section-${i}`, images: [], approved: false }));
+  }
+
+  return result.map((s, i) => ({ ...s, id: `section-${i}`, images: [], approved: false }));
 }

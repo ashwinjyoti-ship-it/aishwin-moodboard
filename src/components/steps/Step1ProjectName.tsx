@@ -13,30 +13,49 @@ interface Props {
 interface Errors {
   projectName?: string;
   industry?: string;
-  businessType?: string;
+  businessTypes?: string;
 }
 
 export default function Step1ProjectName({ state, onUpdate, onNext }: Props) {
   const [errors, setErrors] = useState<Errors>({});
+  // Local text state for "Other" industry free-text
+  const [otherText, setOtherText] = useState(
+    state.industry === 'Other' ? (state.businessTypes[0] ?? '') : ''
+  );
 
   const availableCategories = state.industry && state.industry !== 'Other'
     ? INDUSTRY_CATEGORIES[state.industry] ?? []
     : [];
 
   function handleIndustryChange(industry: string) {
-    // Reset category when industry changes
-    onUpdate({ industry, businessType: '' });
-    setErrors(e => ({ ...e, industry: undefined, businessType: undefined }));
+    onUpdate({ industry, businessTypes: [] });
+    setOtherText('');
+    setErrors(e => ({ ...e, industry: undefined, businessTypes: undefined }));
+  }
+
+  function toggleCategory(cat: string) {
+    const already = state.businessTypes.includes(cat);
+    const updated = already
+      ? state.businessTypes.filter(c => c !== cat)
+      : [...state.businessTypes, cat];
+    onUpdate({ businessTypes: updated });
+    setErrors(er => ({ ...er, businessTypes: undefined }));
+  }
+
+  function handleOtherTextChange(text: string) {
+    setOtherText(text);
+    onUpdate({ businessTypes: text.trim() ? [text.trim()] : [] });
+    setErrors(er => ({ ...er, businessTypes: undefined }));
   }
 
   function handleNext() {
     const newErrors: Errors = {};
     if (!state.projectName.trim()) newErrors.projectName = 'Project name is required';
     if (!state.industry) newErrors.industry = 'Please select an industry';
-    if (state.industry !== 'Other' && !state.businessType)
-      newErrors.businessType = 'Please select a category';
-    if (state.industry === 'Other' && !state.businessType.trim())
-      newErrors.businessType = 'Please enter your category';
+    if (state.industry !== 'Other' && state.businessTypes.length === 0)
+      newErrors.businessTypes = 'Please select at least one category';
+    if (state.industry === 'Other' && !otherText.trim())
+      newErrors.businessTypes = 'Please enter your category';
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -45,10 +64,14 @@ export default function Step1ProjectName({ state, onUpdate, onNext }: Props) {
     onNext();
   }
 
+  const hasCategories = state.industry === 'Other'
+    ? otherText.trim().length > 0
+    : state.businessTypes.length > 0;
+
   const canContinue =
     state.projectName.trim().length > 0 &&
     state.industry.length > 0 &&
-    state.businessType.trim().length > 0;
+    hasCategories;
 
   return (
     <div className="step">
@@ -106,37 +129,36 @@ export default function Step1ProjectName({ state, onUpdate, onNext }: Props) {
           )}
         </div>
 
-        {/* Field 3: Category — dynamic based on industry */}
+        {/* Field 3: Category — multi-select chips */}
         {state.industry && (
           <div className="form-group">
             <label className="form-label">
               Business category <span style={{ color: '#e74c3c' }}>*</span>
+              {availableCategories.length > 0 && (
+                <span style={{ fontWeight: 400, color: 'var(--color-muted)', marginLeft: '0.5rem' }}>
+                  — select all that apply
+                </span>
+              )}
             </label>
 
             {state.industry === 'Other' ? (
               <input
-                className={`form-input${errors.businessType ? ' form-input--error' : ''}`}
+                className={`form-input${errors.businessTypes ? ' form-input--error' : ''}`}
                 type="text"
                 placeholder="Enter your business category"
-                value={state.businessType}
-                onChange={e => {
-                  onUpdate({ businessType: e.target.value });
-                  setErrors(er => ({ ...er, businessType: undefined }));
-                }}
+                value={otherText}
+                onChange={e => handleOtherTextChange(e.target.value)}
               />
             ) : (
               <div className="category-grid">
                 {availableCategories.map(cat => {
-                  const selected = state.businessType === cat;
+                  const selected = state.businessTypes.includes(cat);
                   return (
                     <button
                       key={cat}
                       type="button"
                       className={`category-chip${selected ? ' selected' : ''}`}
-                      onClick={() => {
-                        onUpdate({ businessType: selected ? '' : cat });
-                        setErrors(er => ({ ...er, businessType: undefined }));
-                      }}
+                      onClick={() => toggleCategory(cat)}
                       aria-pressed={selected}
                     >
                       {cat}
@@ -146,13 +168,14 @@ export default function Step1ProjectName({ state, onUpdate, onNext }: Props) {
               </div>
             )}
 
-            {errors.businessType && (
-              <span className="form-error">{errors.businessType}</span>
+            {errors.businessTypes && (
+              <span className="form-error">{errors.businessTypes}</span>
             )}
 
-            {state.businessType && (
+            {state.businessTypes.length > 0 && state.industry !== 'Other' && (
               <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>
-                Selected: <strong style={{ color: 'var(--color-text)' }}>{state.businessType}</strong>
+                {state.businessTypes.length === 1 ? '1 category selected' : `${state.businessTypes.length} categories selected`}:{' '}
+                <strong style={{ color: 'var(--color-text)' }}>{state.businessTypes.join(', ')}</strong>
               </p>
             )}
           </div>
@@ -161,7 +184,7 @@ export default function Step1ProjectName({ state, onUpdate, onNext }: Props) {
         <TeachingTooltip
           variant="warm"
           title="Design Principle: Know Your Audience"
-          body="Your industry and category shape every visual choice. A SaaS platform needs rational precision; a yoga studio needs serenity. Starting here means every preset, colour, and image we suggest is relevant to you."
+          body="Your industry and categories shape every visual choice. Select all the services you offer — each one adds relevant sections, images, and Unsplash queries to your mood board."
         />
       </div>
 
