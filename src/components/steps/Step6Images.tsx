@@ -19,6 +19,10 @@ export default function Step6Images({ state, onUpdate, onNext, onBack }: Props) 
   const [loading, setLoading] = useState(false);
   const [swapping, setSwapping] = useState<string | null>(null);
   const [swapPages, setSwapPages] = useState<Record<string, number>>({});
+  // lock: Record<sectionId, Set<photoId>>
+  const [lockedImages, setLockedImages] = useState<Record<string, Set<string>>>({});
+  // colour tint toggle
+  const [tintEnabled, setTintEnabled] = useState(true);
 
   const fetchImages = useCallback(async (sectionsToFetch: Section[], pageOverrides: Record<string, number> = {}) => {
     setLoading(true);
@@ -47,25 +51,48 @@ export default function Step6Images({ state, onUpdate, onNext, onBack }: Props) 
     }
   }, []);
 
+  function toggleLock(sectionId: string, photoId: string) {
+    setLockedImages(prev => {
+      const locked = new Set(prev[sectionId] ?? []);
+      if (locked.has(photoId)) {
+        locked.delete(photoId);
+      } else {
+        locked.add(photoId);
+      }
+      return { ...prev, [sectionId]: locked };
+    });
+  }
+
   async function handleSwap(section: Section) {
+    const locked = lockedImages[section.id] ?? new Set<string>();
+    const currentImages = imageMap[section.id]?.images ?? [];
+    const lockedImgs = currentImages.filter(img => locked.has(img.id));
+    const unlockedCount = Math.max(section.count - lockedImgs.length, 0);
+    if (unlockedCount === 0) return;
+
     setSwapping(section.id);
     const nextPage = (swapPages[section.id] ?? 1) + 1;
     setSwapPages(prev => ({ ...prev, [section.id]: nextPage }));
+
     try {
       const res = await fetch(`${API_BASE}/api/fetch-images`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sections: [{ ...section, page: nextPage }] }),
+        body: JSON.stringify({ sections: [{ ...section, count: unlockedCount, page: nextPage }] }),
       });
       const data: SectionImages = await res.json();
-      setImageMap(prev => ({ ...prev, ...data }));
+      const newImages = (data[section.id]?.images ?? []).slice(0, unlockedCount);
+      const merged = [...lockedImgs, ...newImages];
+      setImageMap(prev => ({
+        ...prev,
+        [section.id]: { success: true, images: merged },
+      }));
     } finally {
       setSwapping(null);
     }
   }
 
   function handleNext() {
-    // Merge fetched images back into sections state
     const updatedSections = state.sections.map(s => ({
       ...s,
       images: imageMap[s.id]?.images ?? s.images,
@@ -77,6 +104,7 @@ export default function Step6Images({ state, onUpdate, onNext, onBack }: Props) 
 
   const progressPct = Math.round((7 / 9) * 100);
   const hasAnyImages = Object.values(imageMap).some(v => v.images.length > 0);
+  const accentColor = state.accentColor;
 
   return (
     <div className="step">
@@ -84,14 +112,31 @@ export default function Step6Images({ state, onUpdate, onNext, onBack }: Props) 
         <span className="step-number">Step 7 of 9</span>
         <h1 className="step-title">Review &amp; approve images</h1>
         <p className="step-subtitle">
-          Approve your mood board images. Hit Swap ↻ on any to fetch fresh alternatives.
+          Lock images you love, then swap the rest. Hit Swap ↻ to fetch fresh alternatives for unlocked slots.
         </p>
       </div>
 
       <div style={{ height: '4px', background: 'var(--color-border)', borderRadius: '2px', marginBottom: '0.5rem' }}>
         <div style={{ height: '100%', width: `${progressPct}%`, background: 'var(--color-accent)', borderRadius: '2px', transition: 'width 0.3s' }} />
       </div>
-      <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '2rem', textAlign: 'right' }}>{progressPct}% complete</p>
+      <p style={{ fontSize: '0.8rem', color: 'var(--color-muted)', marginBottom: '1.5rem', textAlign: 'right' }}>{progressPct}% complete</p>
+
+      {/* Tint toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
+        <button
+          type="button"
+          className={`tint-toggle ${tintEnabled ? 'tint-toggle--on' : ''}`}
+          onClick={() => setTintEnabled(t => !t)}
+          title="Apply your palette colour as a tint over images"
+        >
+          <span className="tint-toggle__dot" />
+          <span>Colour Tint</span>
+          <span className="tint-toggle__label">{tintEnabled ? 'ON' : 'OFF'}</span>
+        </button>
+        <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>
+          Previews images in your accent colour — {accentColor}
+        </span>
+      </div>
 
       <div className="step-body">
         {loading && !hasAnyImages && (
@@ -103,10 +148,19 @@ export default function Step6Images({ state, onUpdate, onNext, onBack }: Props) 
         {state.sections.map(section => {
           const result = imageMap[section.id];
           const isSwapping = swapping === section.id;
+          const sectionLocked = lockedImages[section.id] ?? new Set<string>();
+          const lockedCount = sectionLocked.size;
 
           return (
             <div key={section.id} className="image-section-group">
-              <div className="image-section-title">{section.name}</div>
+              <div className="image-section-header">
+                <div className="image-section-title">{section.name}</div>
+                {lockedCount > 0 && (
+                  <span className="image-section-lock-badge">
+                    🔒 {lockedCount} locked
+                  </span>
+                )}
+              </div>
 
               {!result && (
                 <div style={{ color: 'var(--color-muted)', fontSize: '0.9rem' }}>Loading…</div>
@@ -120,36 +174,58 @@ export default function Step6Images({ state, onUpdate, onNext, onBack }: Props) 
 
               {result?.success && (
                 <div className="image-cards-row">
-                  {result.images.map((img, i) => (
-                    <div key={img.id || i} className="image-card">
-                      {img.placeholder || !img.url ? (
-                        <div
-                          className="image-card__placeholder"
-                          style={{ background: `linear-gradient(135deg, ${state.primaryColor}cc, ${state.accentColor}44)` }}
-                        >
-                          <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>No API key</span>
+                  {result.images.map((img, i) => {
+                    const isLocked = sectionLocked.has(img.id);
+                    return (
+                      <div
+                        key={img.id || i}
+                        className={`image-card ${isLocked ? 'image-card--locked' : ''}`}
+                      >
+                        {img.placeholder || !img.url ? (
+                          <div
+                            className="image-card__placeholder"
+                            style={{ background: `linear-gradient(135deg, ${state.primaryColor}cc, ${accentColor}44)` }}
+                          >
+                            <span style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>No API key</span>
+                          </div>
+                        ) : (
+                          <div className="image-card__photo-wrap">
+                            <img
+                              src={img.thumb}
+                              alt={img.alt}
+                              className="image-card__photo"
+                              loading="lazy"
+                            />
+                            {tintEnabled && (
+                              <div
+                                className="image-card__tint"
+                                style={{ background: accentColor }}
+                              />
+                            )}
+                            <button
+                              type="button"
+                              className={`image-card__lock-btn ${isLocked ? 'image-card__lock-btn--locked' : ''}`}
+                              onClick={() => toggleLock(section.id, img.id)}
+                              title={isLocked ? 'Locked — click to unlock' : 'Click to lock this image'}
+                            >
+                              {isLocked ? '🔒' : '🔓'}
+                            </button>
+                          </div>
+                        )}
+                        <div className="image-card__label">
+                          <a
+                            href={img.photographerUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="image-card__credit"
+                            title={`Photo by ${img.photographer} on Unsplash`}
+                          >
+                            📸 {img.photographer}
+                          </a>
                         </div>
-                      ) : (
-                        <img
-                          src={img.thumb}
-                          alt={img.alt}
-                          className="image-card__photo"
-                          loading="lazy"
-                        />
-                      )}
-                      <div className="image-card__label">
-                        <a
-                          href={img.photographerUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="image-card__credit"
-                          title={`Photo by ${img.photographer} on Unsplash`}
-                        >
-                          📸 {img.photographer}
-                        </a>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -158,9 +234,9 @@ export default function Step6Images({ state, onUpdate, onNext, onBack }: Props) 
                 className="btn btn-secondary"
                 style={{ marginTop: '0.75rem', fontSize: '0.85rem', padding: '0.4rem 1rem' }}
                 onClick={() => handleSwap(section)}
-                disabled={isSwapping}
+                disabled={isSwapping || (lockedImages[section.id]?.size ?? 0) >= section.count}
               >
-                {isSwapping ? 'Fetching…' : 'Swap all ↻'}
+                {isSwapping ? 'Fetching…' : lockedImages[section.id]?.size === section.count ? 'All locked' : 'Swap unlocked ↻'}
               </button>
             </div>
           );
@@ -169,7 +245,7 @@ export default function Step6Images({ state, onUpdate, onNext, onBack }: Props) 
         <TeachingTooltip
           variant="cool"
           title="Principle 4: Reference Images Build Trust"
-          body="Real people, real spaces = credibility. Notice how these images feel cohesive? That's intentional selection, not random. Every image reinforces your preset's mood."
+          body="Lock images you love — only unlocked slots get refreshed on swap. The colour tint previews how your images look in your palette hue before you commit."
         />
       </div>
 

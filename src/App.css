@@ -72,6 +72,16 @@ body {
   padding: 3rem 2rem 4rem;
 }
 
+/* Canvas stage breaks out of the padded/max-width shell */
+.app-main:has(.canvas-stage) {
+  max-width: 100%;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 /* ========================
    Progress Bar
    ======================== */
@@ -1210,13 +1220,79 @@ select.form-input {
 .section-edit-card__count { font-size: 0.85rem; color: var(--color-muted); }
 
 /* Image review cards (Step 6) */
+.image-card__photo-wrap {
+  position: relative;
+  height: 120px;
+  overflow: hidden;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
 .image-card__photo {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
+
+/* Colour tint overlay — multiply blend */
+.image-card__tint {
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: multiply;
+  opacity: 0.28;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+/* Lock button overlay */
+.image-card__lock-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+.image-card:hover .image-card__lock-btn { opacity: 1; }
+.image-card__lock-btn--locked {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+/* Locked card visual state */
+.image-card--locked {
+  border-color: var(--color-accent) !important;
+  box-shadow: 0 0 0 2px var(--color-accent)33;
+}
+
+.image-section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.image-section-lock-badge {
+  font-size: 0.75rem;
+  color: var(--color-accent);
+  background: var(--color-accent)18;
+  padding: 0.15rem 0.6rem;
+  border-radius: 100px;
+  font-weight: 500;
+}
+
 .image-card__credit {
   font-size: 0.72rem;
   color: var(--color-muted);
@@ -1226,6 +1302,217 @@ select.form-input {
   text-overflow: ellipsis;
 }
 .image-card__credit:hover { color: var(--color-accent); }
+
+/* Tint toggle pill */
+.tint-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.85rem 0.3rem 0.5rem;
+  border-radius: 100px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--color-muted);
+  font-family: var(--font-system);
+  transition: all 0.15s;
+}
+.tint-toggle--on {
+  border-color: var(--color-accent);
+  color: var(--color-text);
+  background: var(--color-accent)12;
+}
+.tint-toggle__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-border);
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.tint-toggle--on .tint-toggle__dot {
+  background: var(--color-accent);
+}
+.tint-toggle__label {
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+.tint-toggle--sm { font-size: 0.78rem; padding: 0.25rem 0.7rem 0.25rem 0.4rem; }
+
+/* ========================
+   Infinite Canvas Stage (Step 8)
+   ======================== */
+.canvas-stage {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  background: #F0F0ED;
+}
+
+.canvas-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 1.25rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.canvas-toolbar__left,
+.canvas-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.canvas-toolbar__title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  justify-content: center;
+}
+.canvas-toolbar__project {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--color-text);
+}
+.canvas-toolbar__preset {
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+.canvas-toolbar__count {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  background: var(--color-bg);
+  padding: 0.15rem 0.5rem;
+  border-radius: 100px;
+  border: 1px solid var(--color-border);
+}
+.canvas-toolbar__btn {
+  font-size: 0.8rem !important;
+  padding: 0.35rem 0.85rem !important;
+}
+
+.canvas-hint {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  padding: 0.35rem;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+  letter-spacing: 0.03em;
+}
+
+.canvas-palette-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 1rem;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+.canvas-palette-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.1);
+  flex-shrink: 0;
+}
+.canvas-palette-label {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  margin-right: 0.25rem;
+  white-space: nowrap;
+}
+.canvas-keyword-chip {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 100px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.canvas-viewport {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.canvas-infinite {
+  background-image:
+    radial-gradient(circle, #c8c8c4 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-color: #F0F0ED;
+}
+
+/* Image cards on infinite canvas */
+.canvas-image-card {
+  user-select: none;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  transition: box-shadow 0.15s;
+  will-change: transform;
+}
+.canvas-image-card:hover {
+  box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+}
+.canvas-image-card--dragging {
+  box-shadow: 0 12px 32px rgba(0,0,0,0.25);
+  z-index: 100;
+}
+.canvas-image-card__photo-wrap {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 28px);
+  overflow: hidden;
+}
+.canvas-image-card__photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+.canvas-image-card__caption {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 0.5rem;
+  font-size: 0.68rem;
+  color: var(--color-muted);
+  background: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: capitalize;
+}
+
+/* Section labels on canvas */
+.canvas-section-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted);
+  background: rgba(240,240,237,0.85);
+  backdrop-filter: blur(4px);
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+}
 
 /* Export options (Step 8) */
 .export-options {

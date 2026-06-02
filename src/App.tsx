@@ -7,11 +7,11 @@ import Step3Keywords from './components/steps/Step3Keywords';
 import Step4Colors from './components/steps/Step4Colors';
 import Step5Sections from './components/steps/Step5Sections';
 import Step6Images from './components/steps/Step6Images';
-import Step7Generate from './components/steps/Step7Generate';
+import Step7Canvas from './components/steps/Step7Canvas';
 import Step8Done from './components/steps/Step8Done';
 
 function WizardApp() {
-  const { step, state, onUpdate, onNext, onBack, onRestart } = useProject();
+  const { step, state, onUpdate, onNext, onBack, onRestart, goToStep } = useProject();
   const stepProps = { state, onUpdate, onNext, onBack };
 
   return (
@@ -23,7 +23,7 @@ function WizardApp() {
         </span>
       </header>
       <main className="app-main">
-        <ProgressBar currentStep={step} />
+        {step !== 8 && <ProgressBar currentStep={step} />}
         {step === 1 && <Step1ProjectName {...stepProps} />}
         {step === 2 && <Step2DesignDirection {...stepProps} />}
         {step === 3 && <Step3Inspiration {...stepProps} />}
@@ -31,7 +31,7 @@ function WizardApp() {
         {step === 5 && <Step4Colors {...stepProps} />}
         {step === 6 && <Step5Sections {...stepProps} />}
         {step === 7 && <Step6Images {...stepProps} />}
-        {step === 8 && <Step7Generate {...stepProps} />}
+        {step === 8 && <Step7Canvas {...stepProps} goToStep={goToStep} />}
         {step === 9 && <Step8Done onRestart={onRestart} />}
       </main>
     </div>

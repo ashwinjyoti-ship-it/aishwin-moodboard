@@ -10,7 +10,13 @@ interface Props {
   onBack: () => void;
 }
 
-const SUGGESTIONS = ['calm', 'airy', 'professional', 'warm', 'energetic', 'minimal', 'bold', 'trustworthy', 'luxurious', 'natural'];
+const SUGGESTIONS = [
+  // Core moods
+  'calm', 'airy', 'warm', 'energetic', 'bold', 'minimal', 'natural', 'luxurious', 'trustworthy', 'professional',
+  // Emotional & aesthetic expansions
+  'ethereal', 'grounded', 'playful', 'edgy', 'nostalgic', 'futuristic', 'vibrant', 'sophisticated',
+  'raw', 'organic', 'dynamic', 'mysterious', 'whimsical', 'romantic', 'industrial',
+];
 
 export default function Step3Keywords({ state, onUpdate, onNext, onBack }: Props) {
   const [input, setInput] = useState('');
