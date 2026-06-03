@@ -91,21 +91,10 @@ export default function Step3Inspiration({ state, onUpdate, onNext, onBack }: Pr
     onUpdate({ inspirationImages: updated });
   }
 
-  function applyColors() {
-    if (!analysis || analysis.colors.length === 0) return;
-    const [accent, primary, secondary] = analysis.colors;
-    const patch: Partial<WizardState> = { accentColor: accent };
-    if (primary) patch.primaryColor = primary;
-    if (secondary) patch.secondaryColor = secondary;
-
-    // Merge mood words into keywords (deduplicated)
-    if (analysis.mood.length > 0) {
-      const existing = new Set(state.keywords.map(k => k.toLowerCase()));
-      const newKeywords = analysis.mood.filter(m => !existing.has(m.toLowerCase()));
-      patch.keywords = [...state.keywords, ...newKeywords];
-    }
-
-    onUpdate(patch);
+  function addMoodWordToKeywords(word: string) {
+    const trimmed = word.trim().toLowerCase();
+    if (!trimmed || state.keywords.includes(trimmed) || state.keywords.length >= 8) return;
+    onUpdate({ keywords: [...state.keywords, trimmed] });
   }
 
   const showAnalysis = (analysis && analysis.mood.length > 0) || analysisLoading;
@@ -113,7 +102,7 @@ export default function Step3Inspiration({ state, onUpdate, onNext, onBack }: Pr
   return (
     <div className="step">
       <div className="step-header">
-        <span className="step-number">Step 3 of 9</span>
+        <span className="step-number">Step 4 of 9</span>
         <h1 className="step-title">Add inspiration images</h1>
         <p className="step-subtitle">
           Upload screenshots, Pinterest saves, or photos that capture the vibe you're going for. Max 6 images.
@@ -202,16 +191,30 @@ export default function Step3Inspiration({ state, onUpdate, onNext, onBack }: Pr
               </div>
             ) : analysis && analysis.mood.length > 0 ? (
               <>
-                <p className="analysis-card__label">AI detected mood</p>
+                <p className="analysis-card__label">Detected mood — click to add to keywords</p>
                 <div className="analysis-chips">
-                  {analysis.mood.map((word) => (
-                    <span key={word} className="analysis-chip">{word}</span>
-                  ))}
+                  {analysis.mood.map((word) => {
+                    const alreadyAdded = state.keywords.includes(word.trim().toLowerCase());
+                    return (
+                      <button
+                        key={word}
+                        type="button"
+                        className={`analysis-chip-btn${alreadyAdded ? ' analysis-chip-btn--added' : ''}`}
+                        onClick={() => addMoodWordToKeywords(word)}
+                        disabled={alreadyAdded || state.keywords.length >= 8}
+                        title={alreadyAdded ? 'Already in keywords' : 'Add to keywords'}
+                      >
+                        {word}
+                        {!alreadyAdded && <span className="analysis-chip-btn__plus">+</span>}
+                        {alreadyAdded && <span className="analysis-chip-btn__check">✓</span>}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {analysis.colors.length > 0 && (
                   <>
-                    <p className="analysis-card__label" style={{ marginTop: '1rem' }}>Dominant colours</p>
+                    <p className="analysis-card__label" style={{ marginTop: '1rem' }}>Dominant colours (reference only)</p>
                     <div className="analysis-swatches">
                       {analysis.colors.map((hex) => (
                         <div
@@ -225,17 +228,8 @@ export default function Step3Inspiration({ state, onUpdate, onNext, onBack }: Pr
                   </>
                 )}
 
-                <button
-                  type="button"
-                  className="btn btn-accent"
-                  style={{ marginTop: '1.25rem' }}
-                  onClick={applyColors}
-                >
-                  Apply colours to my palette
-                </button>
-
                 {analysis.placeholder && (
-                  <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.5rem' }}>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.75rem' }}>
                     Using example values — image analysis unavailable.
                   </p>
                 )}

@@ -155,6 +155,9 @@ export default function Step6Images({ state, onUpdate, onNext, onBack }: Props) 
             <div key={section.id} className="image-section-group">
               <div className="image-section-header">
                 <div className="image-section-title">{section.name}</div>
+                {section.id === 'mood-texture' && (
+                  <span className="section-mood-badge">Mood & Texture</span>
+                )}
                 {lockedCount > 0 && (
                   <span className="image-section-lock-badge">
                     🔒 {lockedCount} locked
