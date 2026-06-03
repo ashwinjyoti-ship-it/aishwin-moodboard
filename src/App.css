@@ -999,6 +999,165 @@ select.form-input {
 }
 
 /* ========================
+   Preset Gradient Strip & Grain Texture
+   ======================== */
+.preset-gradient-strip {
+  height: 56px;
+  border-radius: 8px;
+  margin-bottom: 0.25rem;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.preset-gradient-strip::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* Best match badge */
+.preset-best-match {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: var(--color-support);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 100px;
+  text-transform: uppercase;
+  z-index: 1;
+}
+
+/* Ranking loading indicator */
+.ranking-loading-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  padding: 0.5rem 0;
+}
+
+/* ========================
+   Hover Popup — Layout Preview
+   ======================== */
+.preset-hover-popup {
+  position: absolute;
+  top: 0;
+  left: calc(100% + 10px);
+  z-index: 200;
+  width: 240px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.preset-hover-popup--left {
+  left: auto;
+  right: calc(100% + 10px);
+}
+
+.preset-hover-popup__label {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.72rem;
+  color: var(--color-muted);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mini layout inside popup */
+.preset-layout-preview {
+  display: flex;
+  flex-direction: column;
+}
+
+.preset-layout-preview__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+}
+
+.preset-layout-preview__brand {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.preset-layout-preview__nav {
+  display: flex;
+  gap: 6px;
+}
+
+.preset-layout-preview__hero {
+  padding: 14px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preset-layout-preview__headline {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.preset-layout-preview__subline {
+  font-size: 8px;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.preset-layout-preview__cta {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 7.5px;
+  font-weight: 700;
+  align-self: flex-start;
+}
+
+.preset-layout-preview__content {
+  background: #fff;
+  padding: 10px;
+  display: flex;
+  gap: 6px;
+}
+
+.preset-layout-preview__feature {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.preset-layout-preview__feature-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  margin-bottom: 2px;
+}
+
+.preset-layout-preview__feature-line {
+  height: 4px;
+  border-radius: 2px;
+  width: 100%;
+}
+
+/* ========================
    Inspiration Upload (Step 3)
    ======================== */
 .inspiration-dropzone {
@@ -1114,6 +1273,44 @@ select.form-input {
   background: transparent;
 }
 
+/* Interactive mood word chips — Step 4 Inspiration */
+.analysis-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.25rem 0.875rem;
+  border-radius: 100px;
+  border: 1px solid var(--color-support);
+  color: var(--color-support);
+  font-size: 0.85rem;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-system);
+  transition: all 0.15s;
+}
+
+.analysis-chip-btn:hover:not(:disabled) {
+  background: var(--color-support);
+  color: #fff;
+}
+
+.analysis-chip-btn--added {
+  border-color: var(--color-success);
+  color: var(--color-success);
+  cursor: default;
+}
+
+.analysis-chip-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.analysis-chip-btn__plus,
+.analysis-chip-btn__check {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
 .analysis-swatches {
   display: flex;
   gap: 0.625rem;
@@ -1218,6 +1415,19 @@ select.form-input {
 }
 .section-edit-card__remove:hover { border-color: #e74c3c; color: #e74c3c; }
 .section-edit-card__count { font-size: 0.85rem; color: var(--color-muted); }
+
+.section-mood-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 100px;
+  background: var(--color-support);
+  color: #fff;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
 /* Image review cards (Step 6) */
 .image-card__photo-wrap {

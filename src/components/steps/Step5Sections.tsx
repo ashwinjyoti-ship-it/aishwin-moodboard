@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { WizardState, Section } from '../../types';
+import { getPresetById } from '../../data/presets';
 import StepNav from '../StepNav';
 import TeachingTooltip from '../TeachingTooltip';
 
@@ -25,7 +26,12 @@ export default function Step5Sections({ state, onUpdate, onNext, onBack }: Props
     fetch(`${API_BASE}/api/suggest-sections`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ categories: state.businessTypes, presetId: state.presetId }),
+      body: JSON.stringify({
+        categories: state.businessTypes,
+        presetId: state.presetId,
+        keywords: state.keywords,
+        presetName: getPresetById(state.presetId)?.name || '',
+      }),
     })
       .then(r => r.json())
       .then((data: Section[]) => {
@@ -97,6 +103,9 @@ export default function Step5Sections({ state, onUpdate, onNext, onBack }: Props
                 value={section.name}
                 onChange={e => update(idx, { name: e.target.value })}
               />
+              {section.id === 'mood-texture' && (
+                <span className="section-mood-badge">Mood</span>
+              )}
               <button
                 type="button"
                 className="section-edit-card__remove"

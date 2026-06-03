@@ -25,9 +25,9 @@ function WizardApp() {
       <main className="app-main">
         {step !== 8 && <ProgressBar currentStep={step} />}
         {step === 1 && <Step1ProjectName {...stepProps} />}
-        {step === 2 && <Step2DesignDirection {...stepProps} />}
-        {step === 3 && <Step3Inspiration {...stepProps} />}
-        {step === 4 && <Step3Keywords {...stepProps} />}
+        {step === 2 && <Step3Keywords {...stepProps} />}
+        {step === 3 && <Step2DesignDirection {...stepProps} />}
+        {step === 4 && <Step3Inspiration {...stepProps} />}
         {step === 5 && <Step4Colors {...stepProps} />}
         {step === 6 && <Step5Sections {...stepProps} />}
         {step === 7 && <Step6Images {...stepProps} />}

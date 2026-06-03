@@ -190,6 +190,49 @@ export default {
           ? body.categories
           : body.category ? [body.category] : [];
         const suggestions = getSectionSuggestions(categories, body.presetId);
+
+        // Append a Mood & Texture section if keywords are provided
+        const keywords = Array.isArray(body.keywords) ? body.keywords : [];
+        if (keywords.length > 0) {
+          const presetName = body.presetName || '';
+          let moodQuery = `${keywords.slice(0, 3).join(' ')} gradient texture abstract`;
+          try {
+            const apiKey = env.CLAUDE_API_KEY;
+            if (apiKey) {
+              const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                  'x-api-key': apiKey,
+                  'anthropic-version': '2023-06-01',
+                  'content-type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: 'claude-haiku-4-5-20251001',
+                  max_tokens: 64,
+                  messages: [{
+                    role: 'user',
+                    content: `Generate a concise Unsplash photo search query (8-12 words) for abstract, textured, or gradient imagery that evokes these design keywords: ${keywords.join(', ')}.${presetName ? ` The design direction is "${presetName}".` : ''} Focus on textures, gradients, abstract patterns, color fields, natural materials — not specific people or objects. Return ONLY the search query, no explanation.`,
+                  }],
+                }),
+              });
+              if (claudeRes.ok) {
+                const d = await claudeRes.json();
+                const q = (d.content?.[0]?.text || '').trim().replace(/['"]/g, '');
+                if (q.length > 3) moodQuery = q;
+              }
+            }
+          } catch { /* use fallback query */ }
+
+          suggestions.push({
+            id: 'mood-texture',
+            name: 'Mood & Texture',
+            query: moodQuery,
+            count: 4,
+            images: [],
+            approved: false,
+          });
+        }
+
         return json(suggestions);
       }
 
@@ -258,6 +301,62 @@ export default {
         }
 
         return json(results);
+      }
+
+      // POST /api/rank-presets — Claude ranks presets by keywords
+      if (path === '/api/rank-presets' && request.method === 'POST') {
+        try {
+          const body = await request.json();
+          const { keywords = [], industry = '', presets: presetList = [] } = body;
+          const apiKey = env.CLAUDE_API_KEY;
+
+          if (!apiKey || presetList.length === 0) {
+            // Fallback: return presets with equal scores (preserve original order)
+            return json(presetList.map(p => ({ presetId: p.id, score: 5, description: p.description })));
+          }
+
+          const presetsText = presetList.map(p =>
+            `{"id":"${p.id}","name":"${p.name}","description":"${p.description}","audience":"${p.audience}"}`
+          ).join('\n');
+
+          const prompt = `You are a design advisor. Score each design preset from 0-10 based on how well it matches these brand keywords and industry.
+
+Industry: ${industry || 'not specified'}
+Keywords: ${keywords.join(', ')}
+
+For each preset, provide:
+- score (integer 0-10, where 10 = perfect match, 0 = completely wrong vibe)
+- description: a single sentence (max 12 words) explaining how it fits or contrasts the keywords
+
+Presets:
+${presetsText}
+
+Return ONLY valid JSON array with no markdown: [{"presetId":"...", "score": 8, "description": "..."}]`;
+
+          const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'x-api-key': apiKey,
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'claude-haiku-4-5-20251001',
+              max_tokens: 2048,
+              messages: [{ role: 'user', content: prompt }],
+            }),
+          });
+
+          if (!claudeRes.ok) throw new Error(`Claude error: ${claudeRes.status}`);
+          const claudeData = await claudeRes.json();
+          const text = claudeData.content?.[0]?.text || '';
+          const jsonMatch = text.match(/\[[\s\S]*\]/);
+          if (!jsonMatch) throw new Error('No JSON array in response');
+          const parsed = JSON.parse(jsonMatch[0]);
+          return json(parsed);
+        } catch {
+          return json([]);
+        }
       }
 
       // POST /api/generate-moodboard

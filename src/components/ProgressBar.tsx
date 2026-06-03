@@ -2,9 +2,9 @@ import React from 'react';
 
 const STEPS = [
   'Project name',
+  'Keywords',
   'Design direction',
   'Inspiration',
-  'Keywords',
   'Colors',
   'Sections',
   'Images',
