@@ -415,14 +415,15 @@ Return ONLY valid JSON matching this exact schema:
         }
       }
 
-      // POST /api/start-mockup — start Flux image generation via Replicate
+      // POST /api/start-mockup — initial generation via Flux 2 Pro
       if (path === '/api/start-mockup' && request.method === 'POST') {
         const replicateToken = env.REPLICATE_API_TOKEN;
         if (!replicateToken) {
           return json({ error: 'Mockup generation not configured' }, 403);
         }
-        const { sectionName, mood, brandKit, brief } = await request.json();
+        const { sectionName, mood, brandKit, brief, referenceImages } = await request.json();
         if (!sectionName || !mood) return json({ error: 'sectionName and mood required' }, 400);
+        // referenceImages: string[] — Unsplash photo URLs, up to 8 (passed from ImagesScreen selections)
 
         // Build a Claude-powered visual prompt if CLAUDE_API_KEY is available
         let visualPrompt = `${sectionName} section design for ${brief || mood.name}. Primary color ${brandKit?.colors?.primary || mood.palette?.primary}, secondary ${brandKit?.colors?.secondary || mood.palette?.secondary}, accent ${brandKit?.colors?.accent || mood.palette?.accent}. ${mood.keywords?.slice(0, 3).join(', ')} aesthetic. Clean, professional, modern UI mockup.`;
@@ -441,8 +442,79 @@ Return ONLY the prompt text, nothing else.`;
           }
         }
 
+        const isPortrait = sectionName.toLowerCase().includes('mobile') || sectionName.toLowerCase().includes('app');
+
         try {
-          const replicateRes = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions', {
+          // Flux 2 Pro (flux-pro-1.1) — text-to-image, optionally guided by Unsplash reference images
+          const fluxInput = {
+            prompt: visualPrompt,
+            aspect_ratio: isPortrait ? '9:16' : '16:9',
+            output_format: 'webp',
+            output_quality: 80,
+            safety_tolerance: 2,
+          };
+
+          // If caller passed Unsplash reference images, include up to 8 as image_prompt_strength hints
+          if (Array.isArray(referenceImages) && referenceImages.length > 0) {
+            fluxInput.image_prompt = referenceImages.slice(0, 8)[0]; // flux-pro-1.1 takes single image_prompt
+            fluxInput.image_prompt_strength = 0.3; // subtle influence — keeps prompt dominant
+          }
+
+          const replicateRes = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-pro-1.1/predictions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${replicateToken}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'wait',
+            },
+            body: JSON.stringify({ input: fluxInput }),
+          });
+
+          const prediction = await replicateRes.json();
+
+          if (!replicateRes.ok) {
+            return json({ error: prediction.detail || 'Replicate error' }, 500);
+          }
+
+          // Synchronous result via Prefer: wait
+          if (prediction.status === 'succeeded' && prediction.output) {
+            const imageUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+            return json({ status: 'succeeded', imageUrl, predictionId: prediction.id });
+          }
+
+          // Async: return predictionId for polling
+          return json({ status: prediction.status, predictionId: prediction.id });
+        } catch (err) {
+          return json({ error: err.message }, 500);
+        }
+      }
+
+      // POST /api/refine-mockup — iterative editing via Flux Kontext Max
+      if (path === '/api/refine-mockup' && request.method === 'POST') {
+        const replicateToken = env.REPLICATE_API_TOKEN;
+        if (!replicateToken) return json({ error: 'Mockup generation not configured' }, 403);
+
+        const { imageUrl, instruction, brandKit, mood } = await request.json();
+        if (!imageUrl || !instruction) return json({ error: 'imageUrl and instruction required' }, 400);
+
+        // Optionally enrich the edit instruction with brand context
+        let editPrompt = instruction.trim();
+        if (env.CLAUDE_API_KEY && brandKit) {
+          try {
+            const claudePrompt = `Rewrite this image edit instruction as a precise Flux Kontext prompt (max 150 chars).
+Instruction: "${instruction}"
+Brand accent colour: ${brandKit.colors?.accent}
+Mood: ${mood?.name || ''}
+Keep only what needs to change, preserve everything else. Return ONLY the prompt.`;
+            const text = await callClaude(env.CLAUDE_API_KEY, 'claude-haiku-4-5-20251001', claudePrompt, 200);
+            if (text && text.length > 10) editPrompt = text.trim();
+          } catch {
+            // use raw instruction
+          }
+        }
+
+        try {
+          const replicateRes = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-kontext-max/predictions', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${replicateToken}`,
@@ -451,11 +523,11 @@ Return ONLY the prompt text, nothing else.`;
             },
             body: JSON.stringify({
               input: {
-                prompt: visualPrompt,
-                aspect_ratio: sectionName.toLowerCase().includes('mobile') || sectionName.toLowerCase().includes('app') ? '9:16' : '16:9',
-                num_outputs: 1,
+                input_image: imageUrl,
+                prompt: editPrompt,
                 output_format: 'webp',
                 output_quality: 80,
+                safety_tolerance: 2,
               },
             }),
           });
@@ -466,12 +538,11 @@ Return ONLY the prompt text, nothing else.`;
             return json({ error: prediction.detail || 'Replicate error' }, 500);
           }
 
-          // Synchronous result via Prefer: wait
-          if (prediction.status === 'succeeded' && prediction.output?.[0]) {
-            return json({ status: 'succeeded', imageUrl: prediction.output[0], predictionId: prediction.id });
+          if (prediction.status === 'succeeded' && prediction.output) {
+            const refined = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+            return json({ status: 'succeeded', imageUrl: refined, predictionId: prediction.id });
           }
 
-          // Async: return predictionId for polling
           return json({ status: prediction.status, predictionId: prediction.id });
         } catch (err) {
           return json({ error: err.message }, 500);

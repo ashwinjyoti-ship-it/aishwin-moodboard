@@ -2581,3 +2581,25 @@ select.form-input {
   .typography-grid { grid-template-columns: 1fr; }
   .paths-grid { grid-template-columns: 1fr; }
 }
+
+/* Mockup card refinement panel */
+.mockup-card__actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+}
+.mockup-card__action-btn {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 0.5rem 0.75rem;
+}
+.mockup-card__refine {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 0.75rem 0.75rem;
+}
+.mockup-card__refine-input {
+  flex: 1;
+  font-size: 0.82rem;
+  padding: 0.5rem 0.75rem;
+}
