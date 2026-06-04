@@ -149,7 +149,7 @@ export default function BrandKitScreen() {
       )}
 
       <div className="step-nav">
-        <button type="button" className="btn btn-ghost" onClick={() => goTo('moods')}>
+        <button type="button" className="btn btn-ghost" onClick={() => goTo('typography')}>
           ← Back
         </button>
         <div className="step-nav__actions">
@@ -158,6 +158,9 @@ export default function BrandKitScreen() {
           </button>
           <button type="button" className="btn btn-secondary" onClick={() => goTo('images')}>
             Add Images
+          </button>
+          <button type="button" className="btn btn-accent" onClick={() => goTo('paths')}>
+            Generate Mockups →
           </button>
           <button type="button" className="btn btn-primary" onClick={() => goTo('export')}>
             Export →

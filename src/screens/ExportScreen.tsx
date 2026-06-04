@@ -1,13 +1,34 @@
 import { useApp } from '../context/AppContext';
 import { useAppApi } from '../hooks/useAppApi';
 import { toMarkdown, toJSON, toCSSTokens } from '../utils/exportFormatters';
-import { downloadBlob } from '../utils/helpers';
+import { downloadBlob, downloadBlobObject } from '../utils/helpers';
 import { FEATURE_FLAGS } from '../utils/featureFlags';
+
+async function downloadMockupImages(images: { sectionName: string; imageUrl: string }[], projectName: string) {
+  // Dynamic import to keep the bundle lean when not used
+  const JSZip = (await import('jszip')).default;
+  const zip = new JSZip();
+  const folder = zip.folder('mockups')!;
+
+  await Promise.all(images.map(async ({ sectionName, imageUrl }) => {
+    try {
+      const res = await fetch(imageUrl);
+      const blob = await res.blob();
+      const ext = blob.type.includes('png') ? 'png' : 'webp';
+      folder.file(`${sectionName.toLowerCase().replace(/\s+/g, '-')}.${ext}`, blob);
+    } catch {
+      // skip failed image
+    }
+  }));
+
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  downloadBlobObject(zipBlob, `${projectName.toLowerCase().replace(/\s+/g, '-')}-mockups.zip`);
+}
 
 export default function ExportScreen() {
   const { state, goTo, dispatch } = useApp();
   const { saveProject } = useAppApi();
-  const { brandKit, selectedMood, brief, projectName } = state;
+  const { brandKit, selectedMood, brief, projectName, mockupImages } = state;
 
   if (!brandKit || !selectedMood) {
     return (
@@ -24,6 +45,7 @@ export default function ExportScreen() {
   }
 
   const name = projectName || selectedMood.name;
+  const hasMockups = mockupImages.length > 0;
 
   function handleDownload(format: 'markdown' | 'json' | 'css') {
     if (!brandKit) return;
@@ -54,7 +76,6 @@ export default function ExportScreen() {
         <p className="step-subtitle">Download in any format — ready to hand off or start building.</p>
       </div>
 
-      {/* Quick colour preview */}
       <div className="export-palette-preview">
         {[brandKit.colors.primary, brandKit.colors.secondary, brandKit.colors.accent, brandKit.colors.background, brandKit.colors.text].map((hex, i) => (
           <div key={i} className="export-palette-swatch" style={{ backgroundColor: hex }} title={hex} />
@@ -96,14 +117,27 @@ export default function ExportScreen() {
           </button>
         </div>
 
-        {FEATURE_FLAGS.FLUX_MOCKUPS && (
+        {FEATURE_FLAGS.FLUX_MOCKUPS && hasMockups && (
+          <div className="export-option export-option--primary">
+            <span className="export-option__icon">🖼️</span>
+            <div>
+              <div className="export-option__title">Mockup Images ({mockupImages.length})</div>
+              <div className="export-option__desc">Download all generated section mockups as a ZIP file</div>
+            </div>
+            <button type="button" className="btn btn-accent" onClick={() => downloadMockupImages(mockupImages, name)}>
+              Download .zip
+            </button>
+          </div>
+        )}
+
+        {FEATURE_FLAGS.FLUX_MOCKUPS && !hasMockups && (
           <div className="export-option">
             <span className="export-option__icon">🖼️</span>
             <div>
               <div className="export-option__title">AI Section Mockups</div>
               <div className="export-option__desc">Generate unique mockups for each section using Flux — styled with your locked brand colours (~$0.05/image)</div>
             </div>
-            <button type="button" className="btn btn-accent" onClick={() => goTo('mockups')}>
+            <button type="button" className="btn btn-accent" onClick={() => goTo('paths')}>
               Generate
             </button>
           </div>

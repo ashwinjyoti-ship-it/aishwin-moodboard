@@ -4,19 +4,19 @@ import MoodCard from '../components/MoodCard';
 import { MoodOption } from '../types';
 
 export default function MoodsScreen() {
-  const { state, selectMood, goTo, setLoading, setError, setBrandKit } = useApp();
-  const { generateBrandKit } = useAppApi();
+  const { state, selectMood, goTo, setLoading, setError, setTypographyDirections } = useApp();
+  const { generateTypographyDirections } = useAppApi();
 
   async function handleSelectMood(mood: MoodOption) {
     selectMood(mood);
-    goTo('brand-kit');
-    setLoading(true, 'Building your brand kit...');
+    goTo('typography');
+    setLoading(true, 'Generating typography options...');
 
     try {
-      const brandKit = await generateBrandKit(mood, state.brief, mood.name);
-      setBrandKit(brandKit);
+      const directions = await generateTypographyDirections(mood, state.brief);
+      setTypographyDirections(directions);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate brand kit. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to generate typography options. Please try again.');
     }
   }
 
