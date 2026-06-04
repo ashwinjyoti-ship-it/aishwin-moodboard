@@ -1,3 +1,10 @@
+import {
+  getKimiConfig,
+  analyzeInspirationImage,
+  fileToDataUrl,
+  imageUrlToDataUrl,
+} from './kimi.js';
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
@@ -87,83 +94,43 @@ export default {
         return json({ ok: true });
       }
 
-      // POST /api/analyze-image — Claude Vision
+      // POST /api/analyze-image — Kimi K2.6 vision (multipart file or JSON { url })
       if (path === '/api/analyze-image' && request.method === 'POST') {
-        try {
-          const apiKey = env.CLAUDE_API_KEY;
-          if (!apiKey) {
-            return json({ mood: ['serene', 'professional', 'natural'], colors: ['#F5F3F0', '#5DADE2', '#D4A574'], placeholder: true });
-          }
+        const { apiKey, baseUrl } = getKimiConfig(env);
+        if (!apiKey) {
+          return json({
+            mood: ['serene', 'professional', 'natural'],
+            colors: ['#F5F3F0', '#5DADE2', '#D4A574'],
+            placeholder: true,
+            message: 'Set MOONSHOT_API_KEY on the Worker to enable Kimi K2.6 analysis',
+          });
+        }
 
-          let imageBase64;
-          let mediaType = 'image/jpeg';
+        try {
           const contentType = request.headers.get('content-type') || '';
+          let imageDataUrl;
 
           if (contentType.includes('application/json')) {
             const body = await request.json();
-            const imageUrl = body.url;
-            const imageRes = await fetch(imageUrl);
-            if (!imageRes.ok) throw new Error('Failed to fetch image URL');
-            const respContentType = imageRes.headers.get('content-type') || 'image/jpeg';
-            mediaType = respContentType.split(';')[0].trim();
-            const buffer = await imageRes.arrayBuffer();
-            imageBase64 = bufferToBase64(buffer);
-          } else {
+            if (!body?.url) return json({ error: 'url required' }, 400);
+            imageDataUrl = await imageUrlToDataUrl(body.url);
+          } else if (contentType.includes('multipart/form-data')) {
             const formData = await request.formData();
             const file = formData.get('file');
-            if (!file) throw new Error('No file provided');
-            mediaType = file.type || 'image/jpeg';
-            const buffer = await file.arrayBuffer();
-            imageBase64 = bufferToBase64(buffer);
+            if (!file || typeof file === 'string') return json({ error: 'file required' }, 400);
+            imageDataUrl = await fileToDataUrl(file);
+          } else {
+            return json({ error: 'Send JSON { url } or multipart file' }, 400);
           }
 
-          // Normalise media type to Claude-supported values
-          const supportedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-          if (!supportedTypes.includes(mediaType)) mediaType = 'image/jpeg';
-
-          const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'x-api-key': apiKey,
-              'anthropic-version': '2023-06-01',
-              'content-type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'claude-haiku-4-5-20251001',
-              max_tokens: 256,
-              messages: [{
-                role: 'user',
-                content: [
-                  {
-                    type: 'image',
-                    source: { type: 'base64', media_type: mediaType, data: imageBase64 },
-                  },
-                  {
-                    type: 'text',
-                    text: 'Analyse this image for design mood boarding. Return ONLY valid JSON with two fields: "mood" (array of 3-5 single descriptive words capturing the emotional tone, e.g. serene, minimal, warm) and "colors" (array of 3-5 dominant hex colour codes). No explanation, just JSON.',
-                  },
-                ],
-              }],
-            }),
-          });
-
-          if (!claudeRes.ok) throw new Error(`Claude API error: ${claudeRes.status}`);
-          const claudeData = await claudeRes.json();
-          const text = claudeData.content?.[0]?.text || '';
-
-          // Extract JSON from response (strip any markdown code fences if present)
-          const jsonMatch = text.match(/\{[\s\S]*\}/);
-          if (!jsonMatch) throw new Error('No JSON in Claude response');
-          const parsed = JSON.parse(jsonMatch[0]);
-
+          const analysis = await analyzeInspirationImage({ apiKey, baseUrl, imageDataUrl });
+          return json(analysis);
+        } catch {
           return json({
-            mood: Array.isArray(parsed.mood) ? parsed.mood.slice(0, 5) : [],
-            colors: Array.isArray(parsed.colors) ? parsed.colors.slice(0, 5) : [],
-            placeholder: false,
+            mood: ['natural', 'calm', 'balanced'],
+            colors: ['#F5F3F0', '#5DADE2', '#D4A574'],
+            placeholder: true,
           });
-        } catch (analysisErr) {
-          // Graceful fallback — don't block the user
-          return json({ mood: ['natural', 'calm', 'balanced'], colors: ['#F5F3F0', '#5DADE2', '#D4A574'], placeholder: true });
         }
       }
 

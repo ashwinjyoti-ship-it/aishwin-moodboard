@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { WizardState } from '../../types';
 import StepNav from '../StepNav';
 import TeachingTooltip from '../TeachingTooltip';
-import { useClaude } from '../../hooks/useClaude';
+import { useKimi } from '../../hooks/useKimi';
 
 interface Props {
   state: WizardState;
@@ -19,7 +19,7 @@ export default function Step3Inspiration({ state, onUpdate, onNext, onBack }: Pr
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingFileRef = useRef<File | null>(null);
 
-  const { analyzeImage, analysis, loading: analysisLoading } = useClaude();
+  const { analyzeImage, analysis, loading: analysisLoading } = useKimi();
 
   const images = state.inspirationImages;
   const maxReached = images.length >= 6;
@@ -230,7 +230,7 @@ export default function Step3Inspiration({ state, onUpdate, onNext, onBack }: Pr
 
                 {analysis.placeholder && (
                   <p style={{ fontSize: '0.75rem', color: 'var(--color-muted)', marginTop: '0.75rem' }}>
-                    Using example values — image analysis unavailable.
+                    Using example values — set MOONSHOT_API_KEY on the Worker for Kimi analysis.
                   </p>
                 )}
               </>

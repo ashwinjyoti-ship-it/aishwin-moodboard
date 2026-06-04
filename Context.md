@@ -21,7 +21,7 @@ A 9-step wizard that helps non-designers create visual design direction guides (
 | Database | Cloudflare D1 (SQLite) — `mood-projects` |
 | Deployment | Cloudflare Pages (frontend) + Workers CI (backend) |
 | Image API | Unsplash JS SDK (`unsplash-js`) |
-| AI API | Claude Vision (wired, stub — ready for Phase 6) |
+| AI API | Kimi K2.6 vision (`MOONSHOT_API_KEY` on Worker) |
 | Export | JSZip (client-side ZIP generation) |
 
 ---
@@ -56,7 +56,8 @@ aishwin-moodboard/
 │   ├── hooks/
 │   │   ├── useProjectApi.ts            # D1 CRUD via Workers API
 │   │   ├── useUnsplash.ts              # Unsplash image search via Workers proxy
-│   │   └── useClaude.ts               # Claude Vision analysis stub (Phase 6)
+│   │   ├── useKimi.ts                 # Kimi K2.6 image analysis hook
+│   │   └── useClaude.ts               # Deprecated alias → useKimi
 │   └── utils/
 │       ├── api.ts                      # Base fetch wrapper with x-session-id header
 │       ├── constants.ts               # Design tokens, CATEGORIES, TOTAL_STEPS
@@ -131,7 +132,7 @@ aishwin-moodboard/
 | `DELETE` | `/api/projects/:id` | Delete project |
 | `POST` | `/api/suggest-sections` | Auto-suggest sections for category + preset |
 | `POST` | `/api/fetch-images` | Fetch Unsplash photos for sections |
-| `POST` | `/api/analyze-image` | Claude Vision analysis (stub — ready for Phase 6) |
+| `POST` | `/api/analyze-image` | Kimi K2.6 vision — mood + colors from inspiration image |
 | `POST` | `/api/generate-moodboard` | Generate mood board HTML server-side |
 
 All endpoints read `x-session-id` header to scope data per anonymous user session.
@@ -176,7 +177,8 @@ CREATE TABLE project_data (
 | Name | Purpose |
 |---|---|
 | `UNSPLASH_API_KEY` | Unsplash image search (50 req/hr free tier) |
-| `CLAUDE_API_KEY` | Claude Vision for inspiration analysis (Phase 6) |
+| `MOONSHOT_API_KEY` | Kimi K2.6 for inspiration image analysis |
+| `MOONSHOT_BASE_URL` | Optional API base (default `https://api.moonshot.ai/v1`; China: `https://api.moonshot.cn/v1`) |
 
 ### Cloudflare Pages environment variables
 | Name | Value |
@@ -257,7 +259,7 @@ No authentication. Each browser session gets a random UUID stored in `localStora
 
 | Phase | Scope |
 |---|---|
-| Phase 6 | Wire Claude Vision API in Step 3 — analyse uploaded inspiration images, extract mood + colours |
-| Phase 7 | AI copy generation in Step 8 — Claude writes hero taglines, service descriptions keyed to preset + keywords |
+| Phase 6 | Done — Kimi K2.6 analyses inspiration images in Step 4 |
+| Phase 7 | AI copy generation in Step 8 — Kimi writes hero taglines, service descriptions keyed to preset + keywords |
 | Phase 8 | Duplicate project, rename, version history in dashboard |
 | Phase 9 | Shareable public URL for each mood board (read-only view) |
