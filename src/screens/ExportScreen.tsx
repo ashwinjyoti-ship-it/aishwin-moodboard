@@ -100,8 +100,8 @@ export default function ExportScreen() {
           <div className="export-option">
             <span className="export-option__icon">🖼️</span>
             <div>
-              <div className="export-option__title">AI Mockups</div>
-              <div className="export-option__desc">Generate unique section mockups using Flux — tailored to your brand colours</div>
+              <div className="export-option__title">AI Section Mockups</div>
+              <div className="export-option__desc">Generate unique mockups for each section using Flux — styled with your locked brand colours (~$0.05/image)</div>
             </div>
             <button type="button" className="btn btn-accent" onClick={() => goTo('mockups')}>
               Generate

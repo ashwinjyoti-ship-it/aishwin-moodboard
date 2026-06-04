@@ -349,6 +349,93 @@ Return ONLY valid JSON matching this exact schema:
         }
       }
 
+      // POST /api/start-mockup — start Flux image generation via Replicate
+      if (path === '/api/start-mockup' && request.method === 'POST') {
+        const replicateToken = env.REPLICATE_API_TOKEN;
+        if (!replicateToken) {
+          return json({ error: 'Mockup generation not configured' }, 403);
+        }
+        const { sectionName, mood, brandKit, brief } = await request.json();
+        if (!sectionName || !mood) return json({ error: 'sectionName and mood required' }, 400);
+
+        // Build a Claude-powered visual prompt if CLAUDE_API_KEY is available
+        let visualPrompt = `${sectionName} section design for ${brief || mood.name}. Primary color ${brandKit?.colors?.primary || mood.palette?.primary}, secondary ${brandKit?.colors?.secondary || mood.palette?.secondary}, accent ${brandKit?.colors?.accent || mood.palette?.accent}. ${mood.keywords?.slice(0, 3).join(', ')} aesthetic. Clean, professional, modern UI mockup.`;
+
+        if (env.CLAUDE_API_KEY) {
+          try {
+            const claudePrompt = `Write a Flux image generation prompt (max 200 chars) for the "${sectionName}" section of a ${brief || mood.name + ' website'}.
+Brand colours: primary=${brandKit?.colors?.primary || mood.palette?.primary}, accent=${brandKit?.colors?.accent || mood.palette?.accent}
+Mood: ${mood.description}
+Style: ${(mood.keywords || []).slice(0, 3).join(', ')}
+Return ONLY the prompt text, nothing else.`;
+            const text = await callClaude(env.CLAUDE_API_KEY, 'claude-haiku-4-5-20251001', claudePrompt, 256);
+            if (text && text.length > 20) visualPrompt = text.trim();
+          } catch {
+            // use default prompt
+          }
+        }
+
+        try {
+          const replicateRes = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${replicateToken}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'wait',
+            },
+            body: JSON.stringify({
+              input: {
+                prompt: visualPrompt,
+                aspect_ratio: sectionName.toLowerCase().includes('mobile') || sectionName.toLowerCase().includes('app') ? '9:16' : '16:9',
+                num_outputs: 1,
+                output_format: 'webp',
+                output_quality: 80,
+              },
+            }),
+          });
+
+          const prediction = await replicateRes.json();
+
+          if (!replicateRes.ok) {
+            return json({ error: prediction.detail || 'Replicate error' }, 500);
+          }
+
+          // Synchronous result via Prefer: wait
+          if (prediction.status === 'succeeded' && prediction.output?.[0]) {
+            return json({ status: 'succeeded', imageUrl: prediction.output[0], predictionId: prediction.id });
+          }
+
+          // Async: return predictionId for polling
+          return json({ status: prediction.status, predictionId: prediction.id });
+        } catch (err) {
+          return json({ error: err.message }, 500);
+        }
+      }
+
+      // GET /api/mockup-status/:id — poll Replicate prediction status
+      const mockupStatusMatch = path.match(/^\/api\/mockup-status\/([^/]+)$/);
+      if (mockupStatusMatch && request.method === 'GET') {
+        const replicateToken = env.REPLICATE_API_TOKEN;
+        if (!replicateToken) return json({ error: 'Not configured' }, 403);
+
+        const predictionId = mockupStatusMatch[1];
+        try {
+          const res = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
+            headers: { 'Authorization': `Bearer ${replicateToken}` },
+          });
+          const prediction = await res.json();
+          if (prediction.status === 'succeeded' && prediction.output?.[0]) {
+            return json({ status: 'succeeded', imageUrl: prediction.output[0] });
+          }
+          if (prediction.status === 'failed') {
+            return json({ status: 'failed', error: prediction.error || 'Generation failed' });
+          }
+          return json({ status: prediction.status });
+        } catch (err) {
+          return json({ error: err.message }, 500);
+        }
+      }
+
       // POST /api/analyze-image — TODO Phase 3: call Claude Vision
       if (path === '/api/analyze-image' && request.method === 'POST') {
         try {

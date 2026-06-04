@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useProject } from '../context/ProjectContext';
+import { useApp } from '../context/AppContext';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8787';
 
@@ -13,7 +13,7 @@ export interface UnsplashPhoto {
 }
 
 export function useUnsplash() {
-  const { sessionId } = useProject();
+  const { sessionId } = useApp();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

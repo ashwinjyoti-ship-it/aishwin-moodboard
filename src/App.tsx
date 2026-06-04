@@ -3,6 +3,8 @@ import FlowIndicator from './components/FlowIndicator';
 import BriefScreen from './screens/BriefScreen';
 import MoodsScreen from './screens/MoodsScreen';
 import BrandKitScreen from './screens/BrandKitScreen';
+import ImagesScreen from './screens/ImagesScreen';
+import MockupsScreen from './screens/MockupsScreen';
 import ExportScreen from './screens/ExportScreen';
 import { FEATURE_FLAGS } from './utils/featureFlags';
 
@@ -22,8 +24,10 @@ function DirectFlowApp() {
         <FlowIndicator currentStep={step} />
         {step === 'brief' && <BriefScreen />}
         {step === 'moods' && <MoodsScreen />}
-        {(step === 'brand-kit' || step === 'images') && <BrandKitScreen />}
-        {step === 'mockups' && FEATURE_FLAGS.FLUX_MOCKUPS && <div>Mockups coming soon</div>}
+        {step === 'brand-kit' && <BrandKitScreen />}
+        {step === 'images' && <ImagesScreen />}
+        {step === 'mockups' && FEATURE_FLAGS.FLUX_MOCKUPS && <MockupsScreen />}
+        {step === 'mockups' && !FEATURE_FLAGS.FLUX_MOCKUPS && <ExportScreen />}
         {step === 'export' && <ExportScreen />}
       </main>
     </div>
