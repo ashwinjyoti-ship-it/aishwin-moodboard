@@ -163,6 +163,67 @@ export default {
       }
 
 
+      // POST /api/generate-typography-options
+      if (path === '/api/generate-typography-options' && request.method === 'POST') {
+        const { mood, brief } = await request.json();
+        if (!mood) return json({ error: 'mood required' }, 400);
+
+        const FALLBACK_DIRECTIONS = [
+          { id: 'editorial-serif', category: 'serif', displayFont: 'Georgia, "Times New Roman", serif', bodyFont: 'Georgia, "Times New Roman", serif', headingWeight: 400, bodyWeight: 400, personality: 'Editorial & authoritative', industryFit: 'Publishing, luxury, legal', specimen: 'The Art of Brand' },
+          { id: 'modern-sans', category: 'sans-serif', displayFont: '"Helvetica Neue", Arial, sans-serif', bodyFont: '"Helvetica Neue", Arial, sans-serif', headingWeight: 600, bodyWeight: 400, personality: 'Clean & functional', industryFit: 'Tech, SaaS, corporate', specimen: 'Build Something Great' },
+          { id: 'warm-humanist', category: 'sans-serif', displayFont: 'system-ui, -apple-system, sans-serif', bodyFont: 'system-ui, -apple-system, sans-serif', headingWeight: 500, bodyWeight: 400, personality: 'Friendly & approachable', industryFit: 'Healthcare, wellness, community', specimen: 'Welcome to Your Space' },
+          { id: 'expressive-display', category: 'display', displayFont: 'Georgia, Garamond, serif', bodyFont: '"Helvetica Neue", Arial, sans-serif', headingWeight: 300, bodyWeight: 400, personality: 'Bold & distinctive', industryFit: 'Creative, fashion, hospitality', specimen: 'Make a Statement' },
+          { id: 'technical-mono', category: 'sans-serif', displayFont: '"Trebuchet MS", sans-serif', bodyFont: 'system-ui, -apple-system, sans-serif', headingWeight: 600, bodyWeight: 300, personality: 'Precise & technical', industryFit: 'Developer tools, fintech, engineering', specimen: 'Precision by Design' },
+        ];
+
+        const apiKey = env.CLAUDE_API_KEY;
+        if (!apiKey) {
+          return json({ directions: FALLBACK_DIRECTIONS });
+        }
+
+        const prompt = `You are a typographer. Given this brand brief and mood, generate 5 distinct typography directions.
+
+Brief: "${(brief || '').slice(0, 200)}"
+Mood: ${mood.name} — ${mood.description}
+Keywords: ${(mood.keywords || []).join(', ')}
+
+For each direction choose from this font whitelist ONLY:
+- "Georgia, 'Times New Roman', serif"
+- '"Helvetica Neue", Arial, sans-serif'
+- "system-ui, -apple-system, sans-serif"
+- "Garamond, Georgia, serif"
+- '"Trebuchet MS", sans-serif'
+
+Return ONLY valid JSON:
+{
+  "directions": [
+    {
+      "id": "unique-id",
+      "category": "serif|sans-serif|mixed|display",
+      "displayFont": "<from whitelist>",
+      "bodyFont": "<from whitelist>",
+      "headingWeight": <300|400|500|600>,
+      "bodyWeight": <300|400>,
+      "personality": "<3–5 word adjective phrase>",
+      "industryFit": "<2–3 industries>",
+      "specimen": "<4–6 word phrase that shows off this font>"
+    }
+  ]
+}`;
+
+        try {
+          const text = await callClaude(apiKey, 'claude-haiku-4-5-20251001', prompt, 1200);
+          const parsed = JSON.parse(extractJSON(text));
+          if (!parsed.directions || parsed.directions.length === 0) {
+            return json({ directions: FALLBACK_DIRECTIONS });
+          }
+          return json({ directions: parsed.directions.slice(0, 5) });
+        } catch (err) {
+          console.error('generate-typography-options error:', err.message);
+          return json({ directions: FALLBACK_DIRECTIONS });
+        }
+      }
+
       // POST /api/generate-moods
       if (path === '/api/generate-moods' && request.method === 'POST') {
         const { brief } = await request.json();
@@ -206,7 +267,7 @@ Return ONLY valid JSON, no preamble, no markdown:
 
       // POST /api/generate-brand-kit
       if (path === '/api/generate-brand-kit' && request.method === 'POST') {
-        const { mood, brief, projectName } = await request.json();
+        const { mood, brief, projectName, typography } = await request.json();
         if (!mood || !brief) return json({ error: 'mood and brief required' }, 400);
 
         const apiKey = env.CLAUDE_API_KEY;
@@ -227,9 +288,9 @@ Return ONLY valid JSON, no preamble, no markdown:
               error: '#e74c3c',
             },
             typography: {
-              headingFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-              bodyFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-              headingWeight: 400,
+              headingFont: typography?.displayFont || 'system-ui, -apple-system, sans-serif',
+              bodyFont: typography?.bodyFont || 'system-ui, -apple-system, sans-serif',
+              headingWeight: typography?.headingWeight || 400,
               bodyWeight: 400,
               scaleRatio: 1.25,
               baseSizePx: 16,
@@ -265,6 +326,10 @@ Return ONLY valid JSON, no preamble, no markdown:
           return json({ brandKit: buildFallbackBrandKit(mood, brief) });
         }
 
+        const typographyInstruction = typography
+          ? `- Use EXACTLY these fonts: headingFont="${typography.displayFont}", bodyFont="${typography.bodyFont}", headingWeight=${typography.headingWeight}, bodyWeight=${typography.bodyWeight}`
+          : '- Choose typography from this whitelist ONLY: "system-ui, -apple-system, sans-serif" | "Georgia, \'Times New Roman\', serif" | "\\"Helvetica Neue\\", Arial, sans-serif" | "Garamond, Georgia, serif" | "Trebuchet MS, sans-serif"';
+
         const prompt = `You are a senior brand designer. Generate a complete brand kit for this project.
 
 Project brief: "${brief}"
@@ -273,10 +338,11 @@ Selected mood: ${mood.name}
 Mood description: ${mood.description}
 Colour palette: primary=${mood.palette?.primary}, secondary=${mood.palette?.secondary}, accent=${mood.palette?.accent}
 Keywords: ${(mood.keywords || []).join(', ')}
+${typography ? `Typography direction: ${typography.personality} (${typography.industryFit})` : ''}
 
 IMPORTANT:
 - Use EXACTLY these hex codes for primary/secondary/accent (do not change them)
-- Choose typography from this whitelist ONLY: "system-ui, -apple-system, sans-serif" | "Georgia, 'Times New Roman', serif" | "'Helvetica Neue', Arial, sans-serif" | "Garamond, Georgia, serif" | "Trebuchet MS, sans-serif"
+${typographyInstruction}
 - All spacing values must be multiples of 8
 - Components must have real, usable CSS examples
 
@@ -349,14 +415,15 @@ Return ONLY valid JSON matching this exact schema:
         }
       }
 
-      // POST /api/start-mockup — start Flux image generation via Replicate
+      // POST /api/start-mockup — initial generation via Flux 2 Pro
       if (path === '/api/start-mockup' && request.method === 'POST') {
         const replicateToken = env.REPLICATE_API_TOKEN;
         if (!replicateToken) {
           return json({ error: 'Mockup generation not configured' }, 403);
         }
-        const { sectionName, mood, brandKit, brief } = await request.json();
+        const { sectionName, mood, brandKit, brief, referenceImages } = await request.json();
         if (!sectionName || !mood) return json({ error: 'sectionName and mood required' }, 400);
+        // referenceImages: string[] — Unsplash photo URLs, up to 8 (passed from ImagesScreen selections)
 
         // Build a Claude-powered visual prompt if CLAUDE_API_KEY is available
         let visualPrompt = `${sectionName} section design for ${brief || mood.name}. Primary color ${brandKit?.colors?.primary || mood.palette?.primary}, secondary ${brandKit?.colors?.secondary || mood.palette?.secondary}, accent ${brandKit?.colors?.accent || mood.palette?.accent}. ${mood.keywords?.slice(0, 3).join(', ')} aesthetic. Clean, professional, modern UI mockup.`;
@@ -375,8 +442,79 @@ Return ONLY the prompt text, nothing else.`;
           }
         }
 
+        const isPortrait = sectionName.toLowerCase().includes('mobile') || sectionName.toLowerCase().includes('app');
+
         try {
-          const replicateRes = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions', {
+          // Flux 2 Pro (flux-pro-1.1) — text-to-image, optionally guided by Unsplash reference images
+          const fluxInput = {
+            prompt: visualPrompt,
+            aspect_ratio: isPortrait ? '9:16' : '16:9',
+            output_format: 'webp',
+            output_quality: 80,
+            safety_tolerance: 2,
+          };
+
+          // If caller passed Unsplash reference images, include up to 8 as image_prompt_strength hints
+          if (Array.isArray(referenceImages) && referenceImages.length > 0) {
+            fluxInput.image_prompt = referenceImages.slice(0, 8)[0]; // flux-pro-1.1 takes single image_prompt
+            fluxInput.image_prompt_strength = 0.3; // subtle influence — keeps prompt dominant
+          }
+
+          const replicateRes = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-pro-1.1/predictions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${replicateToken}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'wait',
+            },
+            body: JSON.stringify({ input: fluxInput }),
+          });
+
+          const prediction = await replicateRes.json();
+
+          if (!replicateRes.ok) {
+            return json({ error: prediction.detail || 'Replicate error' }, 500);
+          }
+
+          // Synchronous result via Prefer: wait
+          if (prediction.status === 'succeeded' && prediction.output) {
+            const imageUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+            return json({ status: 'succeeded', imageUrl, predictionId: prediction.id });
+          }
+
+          // Async: return predictionId for polling
+          return json({ status: prediction.status, predictionId: prediction.id });
+        } catch (err) {
+          return json({ error: err.message }, 500);
+        }
+      }
+
+      // POST /api/refine-mockup — iterative editing via Flux Kontext Max
+      if (path === '/api/refine-mockup' && request.method === 'POST') {
+        const replicateToken = env.REPLICATE_API_TOKEN;
+        if (!replicateToken) return json({ error: 'Mockup generation not configured' }, 403);
+
+        const { imageUrl, instruction, brandKit, mood } = await request.json();
+        if (!imageUrl || !instruction) return json({ error: 'imageUrl and instruction required' }, 400);
+
+        // Optionally enrich the edit instruction with brand context
+        let editPrompt = instruction.trim();
+        if (env.CLAUDE_API_KEY && brandKit) {
+          try {
+            const claudePrompt = `Rewrite this image edit instruction as a precise Flux Kontext prompt (max 150 chars).
+Instruction: "${instruction}"
+Brand accent colour: ${brandKit.colors?.accent}
+Mood: ${mood?.name || ''}
+Keep only what needs to change, preserve everything else. Return ONLY the prompt.`;
+            const text = await callClaude(env.CLAUDE_API_KEY, 'claude-haiku-4-5-20251001', claudePrompt, 200);
+            if (text && text.length > 10) editPrompt = text.trim();
+          } catch {
+            // use raw instruction
+          }
+        }
+
+        try {
+          const replicateRes = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-kontext-max/predictions', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${replicateToken}`,
@@ -385,11 +523,11 @@ Return ONLY the prompt text, nothing else.`;
             },
             body: JSON.stringify({
               input: {
-                prompt: visualPrompt,
-                aspect_ratio: sectionName.toLowerCase().includes('mobile') || sectionName.toLowerCase().includes('app') ? '9:16' : '16:9',
-                num_outputs: 1,
+                input_image: imageUrl,
+                prompt: editPrompt,
                 output_format: 'webp',
                 output_quality: 80,
+                safety_tolerance: 2,
               },
             }),
           });
@@ -400,12 +538,11 @@ Return ONLY the prompt text, nothing else.`;
             return json({ error: prediction.detail || 'Replicate error' }, 500);
           }
 
-          // Synchronous result via Prefer: wait
-          if (prediction.status === 'succeeded' && prediction.output?.[0]) {
-            return json({ status: 'succeeded', imageUrl: prediction.output[0], predictionId: prediction.id });
+          if (prediction.status === 'succeeded' && prediction.output) {
+            const refined = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+            return json({ status: 'succeeded', imageUrl: refined, predictionId: prediction.id });
           }
 
-          // Async: return predictionId for polling
           return json({ status: prediction.status, predictionId: prediction.id });
         } catch (err) {
           return json({ error: err.message }, 500);

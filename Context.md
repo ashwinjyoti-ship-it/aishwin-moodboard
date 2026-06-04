@@ -1,8 +1,8 @@
-# Mood Board Generator — Project Context
+# Mood Board Generator v2.0 — Project Context
 
 ## Overview
 
-A 9-step wizard that helps non-designers create visual design direction guides (mood boards) for health and wellness websites. The tool teaches 5 mood boarding principles inline as users build.
+An AI-powered brand kit generator. Enter a one-sentence brief → get 3 AI mood options → pick a typography direction → auto-generate a full brand kit → optionally generate AI mockups via Flux → export as Markdown / CSS / JSON / image ZIP.
 
 **Live URLs**
 - App: https://mood-board.pages.dev
@@ -20,9 +20,28 @@ A 9-step wizard that helps non-designers create visual design direction guides (
 | Backend | Cloudflare Workers (single file: `functions/index.js`) |
 | Database | Cloudflare D1 (SQLite) — `mood-projects` |
 | Deployment | Cloudflare Pages (frontend) + Workers CI (backend) |
+| AI — Moods | Claude Haiku (`claude-haiku-4-5-20251001`) |
+| AI — Brand Kit | Claude Sonnet (`claude-sonnet-4-6`) |
+| AI — Mockups | Replicate `flux-schnell` via Replicate API |
 | Image API | Unsplash JS SDK (`unsplash-js`) |
-| AI API | Claude Vision (wired, stub — ready for Phase 6) |
-| Export | JSZip (client-side ZIP generation) |
+| Export | JSZip (client-side ZIP), client-side Markdown/CSS/JSON formatters |
+
+---
+
+## App Flow
+
+```
+Brief (10–200 chars)
+  └─ POST /api/generate-moods  →  3 MoodOption cards
+       └─ Select mood
+            └─ POST /api/generate-typography-options  →  5 TypographyDirection cards
+                 └─ Select typography
+                      └─ POST /api/generate-brand-kit  →  BrandKit (colors, type, spacing, components)
+                           ├─ Export (Markdown / CSS / JSON)
+                           └─ PathsScreen (Website / App / Logo / Desktop)
+                                └─ POST /api/start-mockup × N  →  Flux images
+                                     └─ Export + ZIP download
+```
 
 ---
 
@@ -31,78 +50,230 @@ A 9-step wizard that helps non-designers create visual design direction guides (
 ```
 aishwin-moodboard/
 ├── src/
-│   ├── App.tsx                         # Wizard router — renders step by step
-│   ├── App.css                         # All styles (CSS variables + component styles)
-│   ├── main.tsx
-│   ├── types.ts                        # WizardState, Section, UnsplashPhoto, ColorPreset
+│   ├── App.tsx                          # Direct-flow router
+│   ├── App.css                          # All styles (CSS variables + component styles)
+│   ├── types.ts                         # AppState, AppAction, FlowStep, MoodOption,
+│   │                                    #   BrandKit, TypographyDirection, DesignPath,
+│   │                                    #   MockupImage, UnsplashPhoto, Section
 │   ├── context/
-│   │   └── ProjectContext.tsx          # Global state + localStorage session ID
+│   │   └── AppContext.tsx               # useReducer global state + helpers
 │   ├── data/
-│   │   └── presets.ts                  # 12 design presets with colour palettes
+│   │   └── presets.ts                   # 12 design presets (used for fallbacks)
 │   ├── components/
-│   │   ├── ProgressBar.tsx             # 9-step breadcrumb
-│   │   ├── StepNav.tsx                 # Back / Continue buttons
-│   │   ├── TeachingTooltip.tsx         # Warm (yellow) or cool (blue) principle callout
-│   │   └── steps/
-│   │       ├── Step1ProjectName.tsx    # Project name + 12-category chip grid
-│   │       ├── Step2DesignDirection.tsx # 12 presets grid with colour swatches
-│   │       ├── Step3Inspiration.tsx    # Drag-drop upload + URL paste (6 images max)
-│   │       ├── Step3Keywords.tsx       # Keyword tag chip input
-│   │       ├── Step4Colors.tsx         # Editable palette swatches + live preview
-│   │       ├── Step5Sections.tsx       # Auto-suggest + editable section cards
-│   │       ├── Step6Images.tsx         # Unsplash image grid + per-section Swap
-│   │       ├── Step7Generate.tsx       # Mood board preview + HTML/ZIP/D1 export
-│   │       └── Step8Done.tsx           # Project dashboard (list, delete, new)
+│   │   ├── FlowIndicator.tsx            # 5-step progress indicator
+│   │   └── MoodCard.tsx                 # Mood selection card with swatches + keywords
+│   ├── screens/
+│   │   ├── BriefScreen.tsx              # Brief textarea + example chips
+│   │   ├── MoodsScreen.tsx              # 3 AI mood cards — select to proceed
+│   │   ├── TypographyScreen.tsx         # 5 typography direction cards (font specimens)
+│   │   ├── BrandKitScreen.tsx           # Full brand kit display — colors, type, spacing
+│   │   ├── PathsScreen.tsx              # Multi-select: Website / App / Logo / Desktop
+│   │   ├── ImagesScreen.tsx             # Optional Unsplash reference images per section
+│   │   ├── MockupsScreen.tsx            # Per-section Flux image generation + polling
+│   │   └── ExportScreen.tsx             # Download Markdown / CSS / JSON / mockup ZIP
 │   ├── hooks/
-│   │   ├── useProjectApi.ts            # D1 CRUD via Workers API
-│   │   ├── useUnsplash.ts              # Unsplash image search via Workers proxy
-│   │   └── useClaude.ts               # Claude Vision analysis stub (Phase 6)
+│   │   ├── useAppApi.ts                 # generateMoods, generateTypographyDirections,
+│   │   │                               #   generateBrandKit, saveProject
+│   │   ├── useProjectApi.ts             # D1 CRUD (list, load, delete)
+│   │   ├── useUnsplash.ts               # Unsplash image search via Workers proxy
+│   │   └── useClaude.ts                 # Claude Vision analysis (optional enrichment)
 │   └── utils/
-│       ├── api.ts                      # Base fetch wrapper with x-session-id header
-│       ├── constants.ts               # Design tokens, CATEGORIES, TOTAL_STEPS
-│       └── helpers.ts                 # slugify, capitalize, downloadBlob
+│       ├── api.ts                       # apiFetch wrapper with x-session-id header
+│       ├── exportFormatters.ts          # toMarkdown, toJSON, toCSSTokens
+│       ├── featureFlags.ts              # FEATURE_FLAGS.FLUX_MOCKUPS
+│       ├── constants.ts                 # Design tokens
+│       └── helpers.ts                   # slugify, capitalize, downloadBlob,
+│                                        #   downloadBlobObject
 ├── functions/
-│   └── index.js                       # Cloudflare Workers API router
+│   └── index.js                         # Cloudflare Workers API router
 ├── migrations/
-│   └── 001_create_projects.sql        # D1 schema: projects + project_data tables
-├── .github/
-│   └── workflows/
-│       └── deploy.yml                 # GH Actions: deploys Worker on push to main
-├── wrangler.toml                      # Worker name: mood-board, D1 binding
-└── .env.local.example                 # Template for local dev secrets
+│   ├── 001_create_projects.sql          # projects + project_data tables
+│   └── 002_add_brand_kit.sql            # brand_kit, brief, mood_id columns
+├── wrangler.toml                        # Worker name: mood-board, D1 binding
+└── .env.local.example                   # Template for local dev secrets
 ```
 
 ---
 
-## Wizard Flow (9 Steps)
+## Flow Steps
 
-| Step | File | What it does |
+| Step ID | Screen | Description |
 |---|---|---|
-| 1 | `Step1ProjectName` | Project name + business category chip picker (12 categories) |
-| 2 | `Step2DesignDirection` | Pick from 12 design presets in a 3-col responsive grid |
-| 3 | `Step3Inspiration` | Upload inspiration images (drag-drop / URL paste, max 6) |
-| 4 | `Step3Keywords` | Add vibe keywords as chips |
-| 5 | `Step4Colors` | Edit primary / secondary / accent colours with live preview |
-| 6 | `Step5Sections` | Auto-suggested editable sections (name, Unsplash query, count slider) |
-| 7 | `Step6Images` | Real Unsplash photo grid per section, Swap ↻ to refresh |
-| 8 | `Step7Generate` | Mood board preview + Download HTML / ZIP / Save to D1 |
-| 9 | `Step8Done` | Project dashboard: saved boards with palette strips, delete |
+| `brief` | `BriefScreen` | Enter a 10–200 char project brief |
+| `moods` | `MoodsScreen` | 3 Claude-generated mood cards — pick one |
+| `typography` | `TypographyScreen` | 5 typography direction cards — pick one |
+| `brand-kit` | `BrandKitScreen` | Full brand kit: colors, type, spacing, components |
+| `paths` | `PathsScreen` | Multi-select design paths for mockup generation |
+| `images` | `ImagesScreen` | Optional Unsplash reference images |
+| `mockups` | `MockupsScreen` | Per-section Flux AI image generation |
+| `export` | `ExportScreen` | Download Markdown / CSS / JSON / mockup ZIP |
 
 ---
 
-## 5 Design Principles Taught
+## Workers API Endpoints
 
-| # | Principle | Shown in |
+| Method | Path | Description |
 |---|---|---|
-| 1 | Know Your Audience | Step 1 |
-| 2 | Coherence | Step 2 + Step 6 |
-| 3 | 60–30–10 Colour Rule | Step 5 |
-| 4 | Reference Images Build Trust | Step 7 |
-| 5 | Iteration Refines Vision | Step 8 + Step 9 |
+| `POST` | `/api/generate-moods` | Brief → 3 MoodOption objects (Claude Haiku + fallback) |
+| `POST` | `/api/generate-typography-options` | Mood → 5 TypographyDirection objects (Claude Haiku + fallback) |
+| `POST` | `/api/generate-brand-kit` | Mood + typography → BrandKit (Claude Sonnet + fallback) |
+| `POST` | `/api/start-mockup` | Section + brand kit → Flux image via Replicate (sync Prefer:wait) |
+| `GET` | `/api/mockup-status/:id` | Poll Replicate prediction status |
+| `POST` | `/api/analyze-image` | Claude Vision image analysis (used by useClaude hook) |
+| `POST` | `/api/projects` | Save project to D1 |
+| `GET` | `/api/projects` | List projects by session ID |
+| `GET` | `/api/projects/:id` | Load single project |
+| `DELETE` | `/api/projects/:id` | Delete project |
+
+All endpoints read `x-session-id` header to scope data per anonymous session.
+
+All AI endpoints have deterministic fallbacks — the app works without any API keys.
 
 ---
 
-## 12 Design Presets
+## State Shape
+
+```typescript
+type FlowStep = 'brief' | 'moods' | 'typography' | 'brand-kit' | 'paths' | 'images' | 'mockups' | 'export';
+
+interface AppState {
+  step: FlowStep;
+  brief: string;
+  projectName: string;
+  moods: MoodOption[];
+  selectedMood: MoodOption | null;
+  typographyDirections: TypographyDirection[];
+  selectedTypography: TypographyDirection | null;
+  brandKit: BrandKit | null;
+  selectedPaths: DesignPath[];      // 'website' | 'app' | 'logo' | 'logo-kit' | 'desktop'
+  mockupImages: MockupImage[];
+  images: UnsplashPhoto[];
+  projectId: string | null;
+  loading: boolean;
+  loadingStep: string | null;
+  error: string | null;
+}
+```
+
+---
+
+## D1 Database Schema
+
+```sql
+-- migration 001
+CREATE TABLE projects (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  category TEXT,
+  preset_name TEXT,
+  custom_description TEXT,
+  created_at TEXT,
+  updated_at TEXT,
+  user_session_id TEXT
+);
+
+CREATE TABLE project_data (
+  project_id TEXT PRIMARY KEY,
+  inspiration_url TEXT,
+  inspiration_analysis TEXT,
+  palette_colors TEXT,   -- JSON: { primary, secondary, accent }
+  sections TEXT,         -- JSON: Section[]
+  generated_html TEXT,
+  metadata TEXT,         -- JSON: { keywords, presetId, moodName, ... }
+  FOREIGN KEY (project_id) REFERENCES projects(id)
+);
+
+-- migration 002
+ALTER TABLE project_data ADD COLUMN brand_kit TEXT;   -- JSON: BrandKit
+ALTER TABLE project_data ADD COLUMN brief TEXT;
+ALTER TABLE project_data ADD COLUMN mood_id TEXT;
+```
+
+- Database name: `mood-projects`
+- Database ID: `97075942-c155-4a21-a11f-433dbda9d1aa`
+
+---
+
+## Environment Variables & Secrets
+
+### Cloudflare Workers secrets
+| Name | Purpose |
+|---|---|
+| `CLAUDE_API_KEY` | Claude API for mood/typography/brand-kit generation |
+| `UNSPLASH_API_KEY` | Unsplash image search (50 req/hr free tier) |
+| `REPLICATE_API_TOKEN` | Replicate API for Flux mockup generation |
+
+### Cloudflare Pages environment variables
+| Name | Value |
+|---|---|
+| `VITE_API_BASE` | `https://mood-board.ashwinjyoti.workers.dev` |
+| `VITE_ENABLE_FLUX_MOCKUPS` | `true` (omit to disable Flux feature) |
+
+### Local development (`.env.local` — never committed)
+```
+VITE_API_BASE=http://localhost:8787
+```
+
+---
+
+## Design System (App Shell)
+
+### Colours
+| Token | Hex | Use |
+|---|---|---|
+| `--color-bg` | `#FAFAF8` | Page background |
+| `--color-surface` | `#FFFFFF` | Cards, panels |
+| `--color-text` | `#1a1a18` | Body text |
+| `--color-muted` | `#8B8B86` | Captions, hints |
+| `--color-accent` | `#D4A574` | CTAs, highlights |
+| `--color-success` | `#27AE60` | Success states |
+| `--color-border` | `#E8E8E5` | Dividers, card borders |
+
+### Typography
+- Font: system stack (`system-ui, -apple-system, sans-serif`)
+- Display: 2.2rem, weight 300
+- Heading: 1.8rem, weight 400
+- Body: 1rem, line-height 1.8
+
+### Spacing
+- 8px base grid
+- Card padding: `2rem`
+- Section gap: `3–4rem`
+- Border radius: `8px` (sm), `12px` (md)
+
+---
+
+## Session Management
+
+No authentication. Each browser session gets a random UUID stored in `localStorage` under `mb_session_id`. Every API request sends it as `x-session-id`. The Worker scopes all D1 queries to this session ID.
+
+---
+
+## Deployment
+
+- **Frontend**: Cloudflare Pages auto-deploys from `main` — runs `npm run build`, deploys `dist/`
+- **Worker**: Cloudflare Workers CI auto-deploys from `main`
+
+### Manual commands
+```bash
+# Local dev
+npm run dev              # Vite frontend at localhost:5173
+npm run workers:dev      # Worker at localhost:8787
+
+# Deploy
+npm run workers:deploy   # Push Worker to Cloudflare
+npm run build            # Build frontend (tsc && vite build)
+
+# Database
+wrangler d1 execute mood-projects --file migrations/001_create_projects.sql
+wrangler d1 execute mood-projects --file migrations/002_add_brand_kit.sql
+```
+
+---
+
+## 12 Design Presets (Fallback Data)
+
+Used as deterministic fallbacks when `CLAUDE_API_KEY` is unavailable.
 
 | ID | Name | Audience |
 |---|---|---|
@@ -121,143 +292,10 @@ aishwin-moodboard/
 
 ---
 
-## Workers API Endpoints
+## Remaining Work (Phase 2E)
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/projects` | Save project to D1 |
-| `GET` | `/api/projects` | List projects by session ID |
-| `GET` | `/api/projects/:id` | Load single project |
-| `DELETE` | `/api/projects/:id` | Delete project |
-| `POST` | `/api/suggest-sections` | Auto-suggest sections for category + preset |
-| `POST` | `/api/fetch-images` | Fetch Unsplash photos for sections |
-| `POST` | `/api/analyze-image` | Claude Vision analysis (stub — ready for Phase 6) |
-| `POST` | `/api/generate-moodboard` | Generate mood board HTML server-side |
-
-All endpoints read `x-session-id` header to scope data per anonymous user session.
-
----
-
-## D1 Database Schema
-
-```sql
-CREATE TABLE projects (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  category TEXT,
-  preset_name TEXT,
-  custom_description TEXT,
-  created_at TEXT,
-  updated_at TEXT,
-  user_session_id TEXT
-);
-
-CREATE TABLE project_data (
-  project_id TEXT PRIMARY KEY,
-  inspiration_url TEXT,
-  inspiration_analysis TEXT,
-  palette_colors TEXT,     -- JSON: { primary, secondary, accent }
-  sections TEXT,           -- JSON: Section[]
-  generated_html TEXT,
-  metadata TEXT,           -- JSON: { keywords, presetId, ... }
-  FOREIGN KEY (project_id) REFERENCES projects(id)
-);
-```
-
-- Database name: `mood-projects`
-- Database ID: `97075942-c155-4a21-a11f-433dbda9d1aa`
-- Region: ENAM
-
----
-
-## Environment Variables & Secrets
-
-### Cloudflare Workers secrets (set via wrangler)
-| Name | Purpose |
+| Item | Description |
 |---|---|
-| `UNSPLASH_API_KEY` | Unsplash image search (50 req/hr free tier) |
-| `CLAUDE_API_KEY` | Claude Vision for inspiration analysis (Phase 6) |
-
-### Cloudflare Pages environment variables
-| Name | Value |
-|---|---|
-| `VITE_API_BASE` | `https://mood-board.ashwinjyoti.workers.dev` |
-
-### GitHub repository secrets (for Actions)
-| Name | Purpose |
-|---|---|
-| `CLOUDFLARE_API_TOKEN` | Wrangler auth for Worker deploys |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account scoping |
-
-### Local development (`.env.local` — never committed)
-```
-VITE_API_BASE=http://localhost:8787
-```
-
----
-
-## Design System
-
-### Colours
-| Token | Hex | Use |
-|---|---|---|
-| `--color-bg` | `#FAFAF8` | Page background |
-| `--color-surface` | `#FFFFFF` | Cards, panels |
-| `--color-text` | `#1a1a18` | Body text |
-| `--color-muted` | `#8B8B86` | Captions, hints |
-| `--color-accent` | `#D4A574` | CTAs, highlights (use sparingly) |
-| `--color-support` | `#5DADE2` | Cool tooltips, info |
-| `--color-success` | `#27AE60` | Success states |
-| `--color-border` | `#E8E8E5` | Dividers, card borders |
-
-### Typography
-- Font: system stack (`-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue'`)
-- Display: 3rem, weight 300
-- Heading: 1.8rem, weight 400
-- Body: 1rem, line-height 1.8
-- Caption: 0.8rem, muted
-
-### Spacing
-- Card padding: `2rem`
-- Section gap: `3–4rem`
-- 8px grid throughout
-- Border radius: `8px` (sm), `12px` (md)
-
----
-
-## Deployment
-
-### Auto-deploy on push to `main`
-- **Frontend**: Cloudflare Pages (connected to GitHub) — runs `npm run build`, deploys `dist/`
-- **Worker**: GitHub Actions (`.github/workflows/deploy.yml`) — runs `wrangler deploy`
-
-### Manual commands
-```bash
-# Local dev
-npm run dev              # Vite frontend at localhost:5173
-npm run workers:dev      # Worker at localhost:8787
-
-# Deploy
-npm run workers:deploy   # Push Worker to Cloudflare
-npm run build            # Build frontend
-
-# Database
-npm run db:init          # Run migration on mood-projects (dev)
-```
-
----
-
-## Session Management
-
-No authentication. Each browser session gets a random UUID stored in `localStorage` under `mb_session_id`. Every API request sends it as `x-session-id` header. The Worker scopes all D1 queries to this session ID.
-
----
-
-## What's Next (Future Phases)
-
-| Phase | Scope |
-|---|---|
-| Phase 6 | Wire Claude Vision API in Step 3 — analyse uploaded inspiration images, extract mood + colours |
-| Phase 7 | AI copy generation in Step 8 — Claude writes hero taglines, service descriptions keyed to preset + keywords |
-| Phase 8 | Duplicate project, rename, version history in dashboard |
-| Phase 9 | Shareable public URL for each mood board (read-only view) |
+| Flux Kontext Max refinement | Edit individual mockups with text instructions |
+| Variation comparison | Generate 3 variants side-by-side for a section |
+| Color propagation | Recolor all mockups when palette changes |

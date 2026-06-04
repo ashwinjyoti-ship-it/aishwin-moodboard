@@ -1,5 +1,5 @@
 import { createContext, useContext, useReducer, ReactNode } from 'react';
-import { AppState, AppAction, FlowStep, MoodOption, BrandKit, UnsplashPhoto } from '../types';
+import { AppState, AppAction, FlowStep, MoodOption, BrandKit, UnsplashPhoto, TypographyDirection, DesignPath, MockupImage } from '../types';
 
 const SESSION_KEY = 'mb_session_id';
 
@@ -18,7 +18,11 @@ const INITIAL_STATE: AppState = {
   projectName: '',
   moods: [],
   selectedMood: null,
+  typographyDirections: [],
+  selectedTypography: null,
   brandKit: null,
+  selectedPaths: ['website'],
+  mockupImages: [],
   images: [],
   projectId: null,
   loading: false,
@@ -36,11 +40,19 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, moods: action.moods, loading: false, loadingStep: null, error: null };
     case 'SELECT_MOOD':
       return { ...state, selectedMood: action.mood, projectName: action.mood.name };
+    case 'SET_TYPOGRAPHY_DIRECTIONS':
+      return { ...state, typographyDirections: action.directions, loading: false, loadingStep: null, error: null };
+    case 'SELECT_TYPOGRAPHY':
+      return { ...state, selectedTypography: action.direction };
     case 'SET_BRAND_KIT':
       return { ...state, brandKit: action.brandKit, loading: false, loadingStep: null, error: null };
     case 'PATCH_BRAND_KIT':
       if (!state.brandKit) return state;
       return { ...state, brandKit: { ...state.brandKit, ...action.patch } };
+    case 'SET_SELECTED_PATHS':
+      return { ...state, selectedPaths: action.paths };
+    case 'ADD_MOCKUP_IMAGE':
+      return { ...state, mockupImages: [...state.mockupImages.filter(m => m.sectionId !== action.mockup.sectionId), action.mockup] };
     case 'SET_IMAGES':
       return { ...state, images: action.images };
     case 'SET_PROJECT_ID':
@@ -68,7 +80,11 @@ interface AppContextValue {
   setError: (error: string | null) => void;
   setMoods: (moods: MoodOption[]) => void;
   selectMood: (mood: MoodOption) => void;
+  setTypographyDirections: (directions: TypographyDirection[]) => void;
+  selectTypography: (direction: TypographyDirection) => void;
   setBrandKit: (brandKit: BrandKit) => void;
+  setSelectedPaths: (paths: DesignPath[]) => void;
+  addMockupImage: (mockup: MockupImage) => void;
   setImages: (images: UnsplashPhoto[]) => void;
 }
 
@@ -85,14 +101,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setError = (error: string | null) => dispatch({ type: 'SET_ERROR', error });
   const setMoods = (moods: MoodOption[]) => dispatch({ type: 'SET_MOODS', moods });
   const selectMood = (mood: MoodOption) => dispatch({ type: 'SELECT_MOOD', mood });
+  const setTypographyDirections = (directions: TypographyDirection[]) =>
+    dispatch({ type: 'SET_TYPOGRAPHY_DIRECTIONS', directions });
+  const selectTypography = (direction: TypographyDirection) =>
+    dispatch({ type: 'SELECT_TYPOGRAPHY', direction });
   const setBrandKit = (brandKit: BrandKit) => dispatch({ type: 'SET_BRAND_KIT', brandKit });
+  const setSelectedPaths = (paths: DesignPath[]) => dispatch({ type: 'SET_SELECTED_PATHS', paths });
+  const addMockupImage = (mockup: MockupImage) => dispatch({ type: 'ADD_MOCKUP_IMAGE', mockup });
   const setImages = (images: UnsplashPhoto[]) => dispatch({ type: 'SET_IMAGES', images });
 
   return (
     <AppContext.Provider value={{
       state, dispatch, sessionId,
       goTo, reset, setLoading, setError,
-      setMoods, selectMood, setBrandKit, setImages,
+      setMoods, selectMood,
+      setTypographyDirections, selectTypography,
+      setBrandKit, setSelectedPaths, addMockupImage, setImages,
     }}>
       {children}
     </AppContext.Provider>
