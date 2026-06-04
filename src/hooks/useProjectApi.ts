@@ -1,9 +1,9 @@
-import { useProject } from '../context/ProjectContext';
+import { useApp } from '../context/AppContext';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8787';
 
 export function useProjectApi() {
-  const { sessionId } = useProject();
+  const { sessionId } = useApp();
 
   function headers() {
     return {

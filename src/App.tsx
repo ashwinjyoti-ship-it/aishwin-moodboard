@@ -1,38 +1,34 @@
-import { ProjectProvider, useProject } from './context/ProjectContext';
-import ProgressBar from './components/ProgressBar';
-import Step1ProjectName from './components/steps/Step1ProjectName';
-import Step2DesignDirection from './components/steps/Step2DesignDirection';
-import Step3Inspiration from './components/steps/Step3Inspiration';
-import Step3Keywords from './components/steps/Step3Keywords';
-import Step4Colors from './components/steps/Step4Colors';
-import Step5Sections from './components/steps/Step5Sections';
-import Step6Images from './components/steps/Step6Images';
-import Step7Canvas from './components/steps/Step7Canvas';
-import Step8Done from './components/steps/Step8Done';
+import { AppProvider, useApp } from './context/AppContext';
+import FlowIndicator from './components/FlowIndicator';
+import BriefScreen from './screens/BriefScreen';
+import MoodsScreen from './screens/MoodsScreen';
+import BrandKitScreen from './screens/BrandKitScreen';
+import ImagesScreen from './screens/ImagesScreen';
+import MockupsScreen from './screens/MockupsScreen';
+import ExportScreen from './screens/ExportScreen';
+import { FEATURE_FLAGS } from './utils/featureFlags';
 
-function WizardApp() {
-  const { step, state, onUpdate, onNext, onBack, onRestart, goToStep } = useProject();
-  const stepProps = { state, onUpdate, onNext, onBack };
+function DirectFlowApp() {
+  const { state } = useApp();
+  const { step } = state;
 
   return (
     <div className="app">
       <header className="app-header">
         <span className="app-logo">mood<span>board</span></span>
         <span style={{ fontSize: '0.8rem', color: 'var(--color-muted)' }}>
-          Concept Builder
+          Brand Kit Generator
         </span>
       </header>
       <main className="app-main">
-        {step !== 8 && <ProgressBar currentStep={step} />}
-        {step === 1 && <Step1ProjectName {...stepProps} />}
-        {step === 2 && <Step3Keywords {...stepProps} />}
-        {step === 3 && <Step2DesignDirection {...stepProps} />}
-        {step === 4 && <Step3Inspiration {...stepProps} />}
-        {step === 5 && <Step4Colors {...stepProps} />}
-        {step === 6 && <Step5Sections {...stepProps} />}
-        {step === 7 && <Step6Images {...stepProps} />}
-        {step === 8 && <Step7Canvas {...stepProps} goToStep={goToStep} />}
-        {step === 9 && <Step8Done onRestart={onRestart} />}
+        <FlowIndicator currentStep={step} />
+        {step === 'brief' && <BriefScreen />}
+        {step === 'moods' && <MoodsScreen />}
+        {step === 'brand-kit' && <BrandKitScreen />}
+        {step === 'images' && <ImagesScreen />}
+        {step === 'mockups' && FEATURE_FLAGS.FLUX_MOCKUPS && <MockupsScreen />}
+        {step === 'mockups' && !FEATURE_FLAGS.FLUX_MOCKUPS && <ExportScreen />}
+        {step === 'export' && <ExportScreen />}
       </main>
     </div>
   );
@@ -40,8 +36,8 @@ function WizardApp() {
 
 export default function App() {
   return (
-    <ProjectProvider>
-      <WizardApp />
-    </ProjectProvider>
+    <AppProvider>
+      <DirectFlowApp />
+    </AppProvider>
   );
 }
