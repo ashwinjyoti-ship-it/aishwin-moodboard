@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { apiFetch } from '../utils/api';
 import { MockupImage } from '../types';
@@ -23,6 +23,7 @@ export default function MockupsScreen() {
   const [generating, setGenerating] = useState(false);
   const [refineInputs, setRefineInputs] = useState<Record<string, string>>({});
   const [refineOpen, setRefineOpen] = useState<Record<string, boolean>>({});
+  const startedRef = useRef(false);
 
   function updateMockup(section: string, patch: Partial<MockupStatus>) {
     setMockups(prev => ({ ...prev, [section]: { ...prev[section], ...patch } }));
@@ -80,9 +81,20 @@ export default function MockupsScreen() {
 
   async function generateAll() {
     setGenerating(true);
-    await Promise.all(sections.map(s => startMockup(s)));
+    // Stagger starts by 1.5s each to stay within Replicate's burst rate limit
+    const promises = sections.map((s, i) =>
+      new Promise<void>(resolve => setTimeout(() => startMockup(s).then(resolve), i * 1500))
+    );
+    await Promise.all(promises);
     setGenerating(false);
   }
+
+  useEffect(() => {
+    if (!startedRef.current && brandKit && selectedMood) {
+      startedRef.current = true;
+      generateAll();
+    }
+  }, []);
 
   async function refine(section: string) {
     const instruction = refineInputs[section]?.trim();
@@ -119,7 +131,6 @@ export default function MockupsScreen() {
 
   const allDone = sections.every(s => mockups[s]?.status === 'succeeded' || mockups[s]?.status === 'failed');
   const anySucceeded = sections.some(s => mockups[s]?.status === 'succeeded');
-  const notStarted = sections.every(s => mockups[s]?.status === 'idle');
 
   return (
     <div className="mockups-screen">
@@ -132,12 +143,6 @@ export default function MockupsScreen() {
           <span style={{ fontSize: '0.78rem', color: 'var(--color-muted)' }}>~$0.05/image to generate · Refinements preserve context</span>
         </p>
       </div>
-
-      {notStarted && (
-        <button type="button" className="btn btn-accent" onClick={generateAll} disabled={generating} style={{ alignSelf: 'flex-start' }}>
-          Generate {sections.length} Mockups
-        </button>
-      )}
 
       <div className="mockups-grid">
         {sections.map(section => {
@@ -216,7 +221,7 @@ export default function MockupsScreen() {
 
       {generating && !allDone && (
         <p style={{ fontSize: '0.85rem', color: 'var(--color-muted)', textAlign: 'center' }}>
-          Generating in parallel with Flux 2 Pro — ~15–30s per section
+          Generating with Flux 2 Pro — ~15–30s per section
         </p>
       )}
 

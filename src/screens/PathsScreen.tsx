@@ -55,7 +55,7 @@ export default function PathsScreen() {
     if (state.selectedMood) {
       const mergedSections = Array.from(new Set(
         PATH_OPTIONS.filter(p => selected.includes(p.id)).flatMap(p => p.sections)
-      )).slice(0, 6);
+      ));
       dispatch({ type: 'SELECT_MOOD', mood: { ...state.selectedMood, sections: mergedSections } });
     }
     goTo('mockups');
@@ -104,7 +104,10 @@ export default function PathsScreen() {
             Skip mockups
           </button>
           <button type="button" className="btn btn-primary" onClick={handleContinue} disabled={selected.length === 0}>
-            Generate {selected.length > 0 ? `${PATH_OPTIONS.filter(p => selected.includes(p.id)).reduce((n, p) => n + Math.min(p.sections.length, 6), 0)} mockups` : ''} →
+            {selected.length > 0
+            ? `Continue → (${Array.from(new Set(PATH_OPTIONS.filter(p => selected.includes(p.id)).flatMap(p => p.sections))).length} mockups)`
+            : 'Continue →'
+          }
           </button>
         </div>
       </div>

@@ -2281,6 +2281,8 @@ select.form-input {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  overflow: hidden;
+  min-width: 0;
 }
 .brand-kit-component-name {
   font-size: 0.85rem;
