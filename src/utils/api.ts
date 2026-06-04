@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8787';
+const isLocalhost = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+const API_BASE = import.meta.env.VITE_API_BASE || (isLocalhost ? 'http://localhost:8787' : 'https://mood-board.ashwinjyoti.workers.dev');
 
 export async function apiFetch(
   path: string,
