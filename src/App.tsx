@@ -2,7 +2,9 @@ import { AppProvider, useApp } from './context/AppContext';
 import FlowIndicator from './components/FlowIndicator';
 import BriefScreen from './screens/BriefScreen';
 import MoodsScreen from './screens/MoodsScreen';
+import TypographyScreen from './screens/TypographyScreen';
 import BrandKitScreen from './screens/BrandKitScreen';
+import PathsScreen from './screens/PathsScreen';
 import ImagesScreen from './screens/ImagesScreen';
 import MockupsScreen from './screens/MockupsScreen';
 import ExportScreen from './screens/ExportScreen';
@@ -24,7 +26,10 @@ function DirectFlowApp() {
         <FlowIndicator currentStep={step} />
         {step === 'brief' && <BriefScreen />}
         {step === 'moods' && <MoodsScreen />}
+        {step === 'typography' && <TypographyScreen />}
         {step === 'brand-kit' && <BrandKitScreen />}
+        {step === 'paths' && FEATURE_FLAGS.FLUX_MOCKUPS && <PathsScreen />}
+        {step === 'paths' && !FEATURE_FLAGS.FLUX_MOCKUPS && <ExportScreen />}
         {step === 'images' && <ImagesScreen />}
         {step === 'mockups' && FEATURE_FLAGS.FLUX_MOCKUPS && <MockupsScreen />}
         {step === 'mockups' && !FEATURE_FLAGS.FLUX_MOCKUPS && <ExportScreen />}

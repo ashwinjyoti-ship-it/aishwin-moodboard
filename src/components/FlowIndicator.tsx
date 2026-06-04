@@ -3,27 +3,32 @@ import { FlowStep } from '../types';
 const STEPS: { id: FlowStep; label: string }[] = [
   { id: 'brief', label: 'Brief' },
   { id: 'moods', label: 'Mood' },
+  { id: 'typography', label: 'Type' },
   { id: 'brand-kit', label: 'Brand Kit' },
   { id: 'export', label: 'Export' },
 ];
 
-const STEP_ORDER: FlowStep[] = ['brief', 'moods', 'brand-kit', 'images', 'mockups', 'export'];
+const STEP_ORDER: FlowStep[] = ['brief', 'moods', 'typography', 'brand-kit', 'paths', 'images', 'mockups', 'export'];
 
 interface Props {
   currentStep: FlowStep;
 }
 
+function resolveDisplayStep(step: FlowStep): FlowStep {
+  if (step === 'paths' || step === 'images' || step === 'mockups') return 'brand-kit';
+  return step;
+}
+
 export default function FlowIndicator({ currentStep }: Props) {
   const currentIndex = STEP_ORDER.indexOf(currentStep);
+  const displayStep = resolveDisplayStep(currentStep);
 
   return (
     <div className="flow-indicator">
       {STEPS.map((s, i) => {
         const stepIndex = STEP_ORDER.indexOf(s.id);
         const isDone = stepIndex < currentIndex;
-        const isActive = stepIndex === currentIndex ||
-          (currentStep === 'images' && s.id === 'brand-kit') ||
-          (currentStep === 'mockups' && s.id === 'brand-kit');
+        const isActive = s.id === displayStep;
 
         return (
           <div key={s.id} className="flow-indicator__step-wrapper">

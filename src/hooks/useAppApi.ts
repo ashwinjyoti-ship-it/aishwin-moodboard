@@ -1,6 +1,6 @@
 import { apiFetch } from '../utils/api';
 import { useApp } from '../context/AppContext';
-import { MoodOption, BrandKit } from '../types';
+import { MoodOption, BrandKit, TypographyDirection } from '../types';
 
 export function useAppApi() {
   const { sessionId } = useApp();
@@ -18,10 +18,23 @@ export function useAppApi() {
     return data.moods;
   }
 
-  async function generateBrandKit(mood: MoodOption, brief: string, projectName: string): Promise<BrandKit> {
+  async function generateTypographyDirections(mood: MoodOption, brief: string): Promise<TypographyDirection[]> {
+    const res = await apiFetch('/api/generate-typography-options', {
+      method: 'POST',
+      body: JSON.stringify({ mood, brief }),
+    }, sessionId);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Request failed' }));
+      throw new Error((err as { error?: string }).error || `HTTP ${res.status}`);
+    }
+    const data = await res.json() as { directions: TypographyDirection[] };
+    return data.directions;
+  }
+
+  async function generateBrandKit(mood: MoodOption, brief: string, projectName: string, typography?: TypographyDirection | null): Promise<BrandKit> {
     const res = await apiFetch('/api/generate-brand-kit', {
       method: 'POST',
-      body: JSON.stringify({ mood, brief, projectName }),
+      body: JSON.stringify({ mood, brief, projectName, typography }),
     }, sessionId);
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Request failed' }));
@@ -52,5 +65,5 @@ export function useAppApi() {
     return data.id;
   }
 
-  return { generateMoods, generateBrandKit, saveProject };
+  return { generateMoods, generateTypographyDirections, generateBrandKit, saveProject };
 }

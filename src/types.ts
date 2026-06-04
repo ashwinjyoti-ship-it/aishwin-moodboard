@@ -109,7 +109,29 @@ export interface BrandKit {
   generatedAt: string;
 }
 
-export type FlowStep = 'brief' | 'moods' | 'brand-kit' | 'images' | 'mockups' | 'export';
+export interface TypographyDirection {
+  id: string;
+  category: 'serif' | 'sans-serif' | 'mixed' | 'display';
+  displayFont: string;
+  bodyFont: string;
+  headingWeight: number;
+  bodyWeight: number;
+  personality: string;
+  industryFit: string;
+  specimen: string;
+}
+
+export type DesignPath = 'website' | 'app' | 'logo' | 'logo-kit' | 'desktop';
+
+export interface MockupImage {
+  sectionId: string;
+  sectionName: string;
+  imageUrl: string;
+  prompt: string;
+  generatedAt: string;
+}
+
+export type FlowStep = 'brief' | 'moods' | 'typography' | 'brand-kit' | 'paths' | 'images' | 'mockups' | 'export';
 
 export interface AppState {
   step: FlowStep;
@@ -117,7 +139,11 @@ export interface AppState {
   projectName: string;
   moods: MoodOption[];
   selectedMood: MoodOption | null;
+  typographyDirections: TypographyDirection[];
+  selectedTypography: TypographyDirection | null;
   brandKit: BrandKit | null;
+  selectedPaths: DesignPath[];
+  mockupImages: MockupImage[];
   images: UnsplashPhoto[];
   projectId: string | null;
   loading: boolean;
@@ -130,8 +156,12 @@ export type AppAction =
   | { type: 'SET_PROJECT_NAME'; name: string }
   | { type: 'SET_MOODS'; moods: MoodOption[] }
   | { type: 'SELECT_MOOD'; mood: MoodOption }
+  | { type: 'SET_TYPOGRAPHY_DIRECTIONS'; directions: TypographyDirection[] }
+  | { type: 'SELECT_TYPOGRAPHY'; direction: TypographyDirection }
   | { type: 'SET_BRAND_KIT'; brandKit: BrandKit }
   | { type: 'PATCH_BRAND_KIT'; patch: Partial<BrandKit> }
+  | { type: 'SET_SELECTED_PATHS'; paths: DesignPath[] }
+  | { type: 'ADD_MOCKUP_IMAGE'; mockup: MockupImage }
   | { type: 'SET_IMAGES'; images: UnsplashPhoto[] }
   | { type: 'SET_PROJECT_ID'; projectId: string }
   | { type: 'SET_FLOW_STEP'; step: FlowStep }

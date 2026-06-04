@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { apiFetch } from '../utils/api';
+import { MockupImage } from '../types';
 
 interface MockupStatus {
   sectionName: string;
@@ -12,7 +13,7 @@ interface MockupStatus {
 }
 
 export default function MockupsScreen() {
-  const { state, goTo, sessionId } = useApp();
+  const { state, goTo, sessionId, addMockupImage } = useApp();
   const { selectedMood, brandKit } = state;
 
   const sections = selectedMood?.sections?.slice(0, 5) || ['Hero', 'About', 'Services', 'Team', 'Contact'];
@@ -35,6 +36,7 @@ export default function MockupsScreen() {
         const data = await res.json() as { status: string; imageUrl?: string; error?: string };
         if (data.status === 'succeeded' && data.imageUrl) {
           updateMockup(section, { status: 'succeeded', imageUrl: data.imageUrl });
+          addMockupImage({ sectionId: section, sectionName: section, imageUrl: data.imageUrl, prompt: '', generatedAt: new Date().toISOString() } satisfies MockupImage);
           return;
         }
         if (data.status === 'failed') {
@@ -74,6 +76,7 @@ export default function MockupsScreen() {
         // Synchronous result (Prefer: wait)
         if (data.status === 'succeeded' && data.imageUrl) {
           updateMockup(section, { status: 'succeeded', imageUrl: data.imageUrl });
+          addMockupImage({ sectionId: section, sectionName: section, imageUrl: data.imageUrl, prompt: '', generatedAt: new Date().toISOString() } satisfies MockupImage);
           return;
         }
         // Async: poll
@@ -100,6 +103,7 @@ export default function MockupsScreen() {
       const data = await res.json() as { predictionId?: string; imageUrl?: string; error?: string; status?: string };
       if (data.status === 'succeeded' && data.imageUrl) {
         updateMockup(section, { status: 'succeeded', imageUrl: data.imageUrl });
+        addMockupImage({ sectionId: section, sectionName: section, imageUrl: data.imageUrl, prompt: '', generatedAt: new Date().toISOString() } satisfies MockupImage);
         return;
       }
       if (data.predictionId) {

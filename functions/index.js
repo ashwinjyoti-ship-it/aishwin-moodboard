@@ -163,6 +163,67 @@ export default {
       }
 
 
+      // POST /api/generate-typography-options
+      if (path === '/api/generate-typography-options' && request.method === 'POST') {
+        const { mood, brief } = await request.json();
+        if (!mood) return json({ error: 'mood required' }, 400);
+
+        const FALLBACK_DIRECTIONS = [
+          { id: 'editorial-serif', category: 'serif', displayFont: 'Georgia, "Times New Roman", serif', bodyFont: 'Georgia, "Times New Roman", serif', headingWeight: 400, bodyWeight: 400, personality: 'Editorial & authoritative', industryFit: 'Publishing, luxury, legal', specimen: 'The Art of Brand' },
+          { id: 'modern-sans', category: 'sans-serif', displayFont: '"Helvetica Neue", Arial, sans-serif', bodyFont: '"Helvetica Neue", Arial, sans-serif', headingWeight: 600, bodyWeight: 400, personality: 'Clean & functional', industryFit: 'Tech, SaaS, corporate', specimen: 'Build Something Great' },
+          { id: 'warm-humanist', category: 'sans-serif', displayFont: 'system-ui, -apple-system, sans-serif', bodyFont: 'system-ui, -apple-system, sans-serif', headingWeight: 500, bodyWeight: 400, personality: 'Friendly & approachable', industryFit: 'Healthcare, wellness, community', specimen: 'Welcome to Your Space' },
+          { id: 'expressive-display', category: 'display', displayFont: 'Georgia, Garamond, serif', bodyFont: '"Helvetica Neue", Arial, sans-serif', headingWeight: 300, bodyWeight: 400, personality: 'Bold & distinctive', industryFit: 'Creative, fashion, hospitality', specimen: 'Make a Statement' },
+          { id: 'technical-mono', category: 'sans-serif', displayFont: '"Trebuchet MS", sans-serif', bodyFont: 'system-ui, -apple-system, sans-serif', headingWeight: 600, bodyWeight: 300, personality: 'Precise & technical', industryFit: 'Developer tools, fintech, engineering', specimen: 'Precision by Design' },
+        ];
+
+        const apiKey = env.CLAUDE_API_KEY;
+        if (!apiKey) {
+          return json({ directions: FALLBACK_DIRECTIONS });
+        }
+
+        const prompt = `You are a typographer. Given this brand brief and mood, generate 5 distinct typography directions.
+
+Brief: "${(brief || '').slice(0, 200)}"
+Mood: ${mood.name} — ${mood.description}
+Keywords: ${(mood.keywords || []).join(', ')}
+
+For each direction choose from this font whitelist ONLY:
+- "Georgia, 'Times New Roman', serif"
+- '"Helvetica Neue", Arial, sans-serif'
+- "system-ui, -apple-system, sans-serif"
+- "Garamond, Georgia, serif"
+- '"Trebuchet MS", sans-serif'
+
+Return ONLY valid JSON:
+{
+  "directions": [
+    {
+      "id": "unique-id",
+      "category": "serif|sans-serif|mixed|display",
+      "displayFont": "<from whitelist>",
+      "bodyFont": "<from whitelist>",
+      "headingWeight": <300|400|500|600>,
+      "bodyWeight": <300|400>,
+      "personality": "<3–5 word adjective phrase>",
+      "industryFit": "<2–3 industries>",
+      "specimen": "<4–6 word phrase that shows off this font>"
+    }
+  ]
+}`;
+
+        try {
+          const text = await callClaude(apiKey, 'claude-haiku-4-5-20251001', prompt, 1200);
+          const parsed = JSON.parse(extractJSON(text));
+          if (!parsed.directions || parsed.directions.length === 0) {
+            return json({ directions: FALLBACK_DIRECTIONS });
+          }
+          return json({ directions: parsed.directions.slice(0, 5) });
+        } catch (err) {
+          console.error('generate-typography-options error:', err.message);
+          return json({ directions: FALLBACK_DIRECTIONS });
+        }
+      }
+
       // POST /api/generate-moods
       if (path === '/api/generate-moods' && request.method === 'POST') {
         const { brief } = await request.json();
@@ -206,7 +267,7 @@ Return ONLY valid JSON, no preamble, no markdown:
 
       // POST /api/generate-brand-kit
       if (path === '/api/generate-brand-kit' && request.method === 'POST') {
-        const { mood, brief, projectName } = await request.json();
+        const { mood, brief, projectName, typography } = await request.json();
         if (!mood || !brief) return json({ error: 'mood and brief required' }, 400);
 
         const apiKey = env.CLAUDE_API_KEY;
@@ -227,9 +288,9 @@ Return ONLY valid JSON, no preamble, no markdown:
               error: '#e74c3c',
             },
             typography: {
-              headingFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-              bodyFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-              headingWeight: 400,
+              headingFont: typography?.displayFont || 'system-ui, -apple-system, sans-serif',
+              bodyFont: typography?.bodyFont || 'system-ui, -apple-system, sans-serif',
+              headingWeight: typography?.headingWeight || 400,
               bodyWeight: 400,
               scaleRatio: 1.25,
               baseSizePx: 16,
@@ -265,6 +326,10 @@ Return ONLY valid JSON, no preamble, no markdown:
           return json({ brandKit: buildFallbackBrandKit(mood, brief) });
         }
 
+        const typographyInstruction = typography
+          ? `- Use EXACTLY these fonts: headingFont="${typography.displayFont}", bodyFont="${typography.bodyFont}", headingWeight=${typography.headingWeight}, bodyWeight=${typography.bodyWeight}`
+          : '- Choose typography from this whitelist ONLY: "system-ui, -apple-system, sans-serif" | "Georgia, \'Times New Roman\', serif" | "\\"Helvetica Neue\\", Arial, sans-serif" | "Garamond, Georgia, serif" | "Trebuchet MS, sans-serif"';
+
         const prompt = `You are a senior brand designer. Generate a complete brand kit for this project.
 
 Project brief: "${brief}"
@@ -273,10 +338,11 @@ Selected mood: ${mood.name}
 Mood description: ${mood.description}
 Colour palette: primary=${mood.palette?.primary}, secondary=${mood.palette?.secondary}, accent=${mood.palette?.accent}
 Keywords: ${(mood.keywords || []).join(', ')}
+${typography ? `Typography direction: ${typography.personality} (${typography.industryFit})` : ''}
 
 IMPORTANT:
 - Use EXACTLY these hex codes for primary/secondary/accent (do not change them)
-- Choose typography from this whitelist ONLY: "system-ui, -apple-system, sans-serif" | "Georgia, 'Times New Roman', serif" | "'Helvetica Neue', Arial, sans-serif" | "Garamond, Georgia, serif" | "Trebuchet MS, sans-serif"
+${typographyInstruction}
 - All spacing values must be multiples of 8
 - Components must have real, usable CSS examples
 
