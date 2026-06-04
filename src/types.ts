@@ -1,3 +1,5 @@
+// ---- Shared types (used by both old and new flows) ----
+
 export interface ColorPreset {
   id: string;
   name: string;
@@ -26,18 +28,152 @@ export interface UnsplashPhoto {
 }
 
 export interface Section {
-  id: string;          // uuid or slugified name
+  id: string;
   name: string;
   query: string;
-  count: number;       // 3–5
+  count: number;
   images: UnsplashPhoto[];
   approved: boolean;
 }
 
+// ---- New direct-flow types ----
+
+export interface MoodOption {
+  id: string;
+  name: string;
+  description: string;
+  palette: {
+    primary: string;
+    secondary: string;
+    accent: string;
+  };
+  keywords: string[];
+  sections: string[];
+  presetId?: string;
+}
+
+export interface ColorSystem {
+  primary: string;
+  secondary: string;
+  accent: string;
+  background: string;
+  surface: string;
+  text: string;
+  muted: string;
+  border: string;
+  success: string;
+  warning: string;
+  error: string;
+}
+
+export interface TypographySystem {
+  headingFont: string;
+  bodyFont: string;
+  headingWeight: number;
+  bodyWeight: number;
+  scaleRatio: number;
+  baseSizePx: number;
+  lineHeightBody: number;
+  lineHeightHeading: number;
+  letterSpacingHeading: string;
+}
+
+export interface SpacingSystem {
+  baseUnit: number;
+  scale: number[];
+  containerMaxWidth: number;
+  cardPadding: string;
+  sectionGap: string;
+  borderRadius: {
+    sm: string;
+    md: string;
+    lg: string;
+    full: string;
+  };
+}
+
+export interface ComponentGuidance {
+  name: string;
+  description: string;
+  cssExample: string;
+}
+
+export interface BrandKit {
+  colors: ColorSystem;
+  typography: TypographySystem;
+  spacing: SpacingSystem;
+  components: ComponentGuidance[];
+  layoutRules: string[];
+  moodName: string;
+  brief: string;
+  generatedAt: string;
+}
+
+export interface TypographyDirection {
+  id: string;
+  category: 'serif' | 'sans-serif' | 'mixed' | 'display';
+  displayFont: string;
+  bodyFont: string;
+  headingWeight: number;
+  bodyWeight: number;
+  personality: string;
+  industryFit: string;
+  specimen: string;
+}
+
+export type DesignPath = 'website' | 'app' | 'logo' | 'logo-kit' | 'desktop';
+
+export interface MockupImage {
+  sectionId: string;
+  sectionName: string;
+  imageUrl: string;
+  prompt: string;
+  generatedAt: string;
+}
+
+export type FlowStep = 'brief' | 'moods' | 'typography' | 'brand-kit' | 'paths' | 'images' | 'mockups' | 'export';
+
+export interface AppState {
+  step: FlowStep;
+  brief: string;
+  projectName: string;
+  moods: MoodOption[];
+  selectedMood: MoodOption | null;
+  typographyDirections: TypographyDirection[];
+  selectedTypography: TypographyDirection | null;
+  brandKit: BrandKit | null;
+  selectedPaths: DesignPath[];
+  mockupImages: MockupImage[];
+  images: UnsplashPhoto[];
+  projectId: string | null;
+  loading: boolean;
+  loadingStep: string | null;
+  error: string | null;
+}
+
+export type AppAction =
+  | { type: 'SET_BRIEF'; brief: string }
+  | { type: 'SET_PROJECT_NAME'; name: string }
+  | { type: 'SET_MOODS'; moods: MoodOption[] }
+  | { type: 'SELECT_MOOD'; mood: MoodOption }
+  | { type: 'SET_TYPOGRAPHY_DIRECTIONS'; directions: TypographyDirection[] }
+  | { type: 'SELECT_TYPOGRAPHY'; direction: TypographyDirection }
+  | { type: 'SET_BRAND_KIT'; brandKit: BrandKit }
+  | { type: 'PATCH_BRAND_KIT'; patch: Partial<BrandKit> }
+  | { type: 'SET_SELECTED_PATHS'; paths: DesignPath[] }
+  | { type: 'ADD_MOCKUP_IMAGE'; mockup: MockupImage }
+  | { type: 'SET_IMAGES'; images: UnsplashPhoto[] }
+  | { type: 'SET_PROJECT_ID'; projectId: string }
+  | { type: 'SET_FLOW_STEP'; step: FlowStep }
+  | { type: 'SET_LOADING'; loading: boolean; loadingStep?: string }
+  | { type: 'SET_ERROR'; error: string | null }
+  | { type: 'RESET' };
+
+// ---- @deprecated: kept for rollback safety ----
 export interface WizardState {
   projectName: string;
   industry: string;
-  businessType: string;
+  businessTypes: string[];
   presetId: string;
   accentColor: string;
   primaryColor: string;
@@ -45,5 +181,5 @@ export interface WizardState {
   keywords: string[];
   inspirationImages: Array<{ type: 'file'; url: string; name: string } | { type: 'url'; url: string }>;
   sections: Section[];
-  imageSelections: Record<string, number>; // kept for backwards compat
+  imageSelections: Record<string, number>;
 }
