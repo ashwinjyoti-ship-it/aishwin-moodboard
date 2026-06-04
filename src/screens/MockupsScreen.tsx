@@ -15,7 +15,7 @@ export default function MockupsScreen() {
   const { state, goTo, sessionId, addMockupImage } = useApp();
   const { selectedMood, brandKit } = state;
 
-  const sections = selectedMood?.sections?.slice(0, 6) || ['Hero', 'About', 'Services', 'Team', 'Contact'];
+  const sections = selectedMood?.sections || ['Hero', 'About', 'Services', 'Team', 'Contact'];
 
   const [mockups, setMockups] = useState<Record<string, MockupStatus>>(
     Object.fromEntries(sections.map(s => [s, { sectionName: s, status: 'idle' }]))
