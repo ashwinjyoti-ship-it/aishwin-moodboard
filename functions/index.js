@@ -15,6 +15,81 @@ function nanoid() {
   return crypto.randomUUID();
 }
 
+// ---- Presets data (mirrors src/data/presets.ts) ----
+const PRESETS_DATA = [
+  { id: 'serene-minimalist', name: 'Serene Minimalist', description: 'Clean, calm, breathing white space with soft blue accents', audience: 'Yoga, wellness, meditation', colors: { primary: '#FFFFFF', secondary: '#5DADE2', accent: '#D4A574' } },
+  { id: 'modern-elevated', name: 'Modern Elevated', description: 'Sophisticated warm neutrals with dark typography', audience: 'Premium, luxury, boutique', colors: { primary: '#F5F3F0', secondary: '#1a1a18', accent: '#D4A574' } },
+  { id: 'bold-energetic', name: 'Bold Energetic', description: 'High contrast navy and orange for maximum impact', audience: 'Fitness, sports, tech', colors: { primary: '#0B3D91', secondary: '#FFFFFF', accent: '#FF6B35' } },
+  { id: 'soft-sage', name: 'Soft Sage', description: 'Natural green tones, earthy and grounding', audience: 'Holistic health, nutrition', colors: { primary: '#F2F5F0', secondary: '#3D5A47', accent: '#A8C5A0' } },
+  { id: 'rose-warmth', name: 'Rose Warmth', description: 'Warm blush palette, inviting and feminine', audience: 'Spa, beauty, pilates', colors: { primary: '#FDF4F0', secondary: '#C4746A', accent: '#E8A598' } },
+  { id: 'deep-navy', name: 'Deep Navy', description: 'Dark, authoritative, clinical trust', audience: 'Physiotherapy, chiropractic', colors: { primary: '#0A1628', secondary: '#FFFFFF', accent: '#4A9EDE' } },
+  { id: 'warm-terracotta', name: 'Warm Terracotta', description: 'Mediterranean warmth, community feel', audience: 'Dance studio, community wellness', colors: { primary: '#FFF8F3', secondary: '#8B4513', accent: '#E07848' } },
+  { id: 'pure-white', name: 'Pure White', description: 'Medical-grade clarity, clean clinical', audience: 'Corporate wellness, medical', colors: { primary: '#FFFFFF', secondary: '#2C2C2C', accent: '#0066CC' } },
+  { id: 'forest-dark', name: 'Forest Dark', description: 'Deep greens, nature immersive', audience: 'Outdoor training, retreats', colors: { primary: '#1A2E1A', secondary: '#FFFFFF', accent: '#6BCB77' } },
+  { id: 'lavender-calm', name: 'Lavender Calm', description: 'Soft purple, tranquil and restorative', audience: 'Mental wellness, meditation', colors: { primary: '#F7F4FF', secondary: '#5B4B8A', accent: '#9B84D9' } },
+  { id: 'golden-vitality', name: 'Golden Vitality', description: 'Warm gold energy, premium performance', audience: 'Sports performance, elite training', colors: { primary: '#1A1A18', secondary: '#FFFFFF', accent: '#F5C842' } },
+  { id: 'coral-energy', name: 'Coral Energy', description: 'Vibrant and motivating, modern feel', audience: 'HIIT, group fitness', colors: { primary: '#FFF5F3', secondary: '#1A1A18', accent: '#FF6B6B' } },
+];
+
+// Fallback: pick 3 presets deterministically by rough keyword match
+function getFallbackMoods(brief) {
+  const b = brief.toLowerCase();
+  const scored = PRESETS_DATA.map(p => {
+    let score = 0;
+    const words = `${p.name} ${p.description} ${p.audience}`.toLowerCase();
+    b.split(/\W+/).forEach(w => { if (w.length > 3 && words.includes(w)) score++; });
+    return { p, score };
+  }).sort((a, b) => b.score - a.score);
+
+  const chosen = scored.slice(0, 3).map(({ p }) => p);
+  // Ensure 3 distinct choices (fill from remaining if needed)
+  while (chosen.length < 3) {
+    const extra = PRESETS_DATA.find(p => !chosen.some(c => c.id === p.id));
+    if (extra) chosen.push(extra);
+    else break;
+  }
+
+  return chosen.map(p => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    palette: p.colors,
+    keywords: p.audience.split(',').map(s => s.trim()).slice(0, 4),
+    sections: ['Hero', 'About', 'Services', 'Contact'],
+    presetId: p.id,
+  }));
+}
+
+async function callClaude(apiKey, model, prompt, maxTokens = 1024) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Claude API error ${res.status}: ${err}`);
+  }
+  const data = await res.json();
+  return data.content?.[0]?.text || '';
+}
+
+function extractJSON(text) {
+  // Handle markdown code blocks and raw JSON
+  const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (codeBlock) return codeBlock[1].trim();
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  return jsonMatch ? jsonMatch[0] : text;
+}
+
 export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') {
@@ -87,7 +162,194 @@ export default {
         return json({ ok: true });
       }
 
-      // POST /api/analyze-image — Claude Vision
+
+      // POST /api/generate-moods
+      if (path === '/api/generate-moods' && request.method === 'POST') {
+        const { brief } = await request.json();
+        if (!brief || typeof brief !== 'string' || brief.trim().length < 10) {
+          return json({ error: 'Brief must be at least 10 characters' }, 400);
+        }
+        const trimmed = brief.trim().slice(0, 200);
+        const apiKey = env.CLAUDE_API_KEY;
+        if (!apiKey) {
+          return json({ moods: getFallbackMoods(trimmed) });
+        }
+        const prompt = `You are a brand design expert. Given this project brief: "${trimmed}"
+
+From these 12 design presets, select the 3 MOST SUITABLE for this specific project:
+${JSON.stringify(PRESETS_DATA, null, 2)}
+
+For each selected preset return an object with:
+- id: exact preset id (unchanged)
+- name: exact preset name (unchanged)
+- description: one sentence tailored specifically to this brief and project type
+- palette: exact colors from the preset (do NOT invent new colors): { primary, secondary, accent }
+- keywords: array of 5 specific keywords relevant to THIS brief AND this mood
+- sections: array of 4-5 page/app section names appropriate for this type of business
+- presetId: same as id
+
+Return ONLY valid JSON, no preamble, no markdown:
+{ "moods": [ ...3 items... ] }`;
+
+        try {
+          const text = await callClaude(apiKey, 'claude-haiku-4-5-20251001', prompt, 1200);
+          const parsed = JSON.parse(extractJSON(text));
+          if (!parsed.moods || !Array.isArray(parsed.moods) || parsed.moods.length === 0) {
+            return json({ moods: getFallbackMoods(trimmed) });
+          }
+          return json({ moods: parsed.moods.slice(0, 3) });
+        } catch (err) {
+          console.error('generate-moods error:', err.message);
+          return json({ moods: getFallbackMoods(trimmed) });
+        }
+      }
+
+      // POST /api/generate-brand-kit
+      if (path === '/api/generate-brand-kit' && request.method === 'POST') {
+        const { mood, brief, projectName } = await request.json();
+        if (!mood || !brief) return json({ error: 'mood and brief required' }, 400);
+
+        const apiKey = env.CLAUDE_API_KEY;
+
+        function buildFallbackBrandKit(mood, brief) {
+          return {
+            colors: {
+              primary: mood.palette?.primary || '#FFFFFF',
+              secondary: mood.palette?.secondary || '#1a1a18',
+              accent: mood.palette?.accent || '#D4A574',
+              background: mood.palette?.primary || '#FAFAF8',
+              surface: '#FFFFFF',
+              text: '#1a1a18',
+              muted: '#8B8B86',
+              border: '#E8E8E5',
+              success: '#27AE60',
+              warning: '#F5C842',
+              error: '#e74c3c',
+            },
+            typography: {
+              headingFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              bodyFont: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              headingWeight: 400,
+              bodyWeight: 400,
+              scaleRatio: 1.25,
+              baseSizePx: 16,
+              lineHeightBody: 1.8,
+              lineHeightHeading: 1.2,
+              letterSpacingHeading: '-0.02em',
+            },
+            spacing: {
+              baseUnit: 8,
+              scale: [4, 8, 12, 16, 24, 32, 48, 64, 96],
+              containerMaxWidth: 960,
+              cardPadding: '2rem',
+              sectionGap: '4rem',
+              borderRadius: { sm: '8px', md: '12px', lg: '16px', full: '9999px' },
+            },
+            components: [
+              { name: 'Primary Button', description: 'Main call-to-action button', cssExample: `background: ${mood.palette?.accent || '#D4A574'}; color: #fff; padding: 0.75rem 1.5rem; border-radius: 8px;` },
+              { name: 'Card', description: 'Content card with subtle shadow', cssExample: `background: #fff; border: 1px solid #E8E8E5; border-radius: 12px; padding: 1.5rem;` },
+            ],
+            layoutRules: [
+              'Use a 12-column grid with 1200px max-width',
+              'Maintain consistent 8px spacing increments throughout',
+              'Primary colour for backgrounds, accent for interactive elements',
+              'Ensure 4.5:1 contrast ratio for all body text (WCAG AA)',
+            ],
+            moodName: mood.name,
+            brief,
+            generatedAt: new Date().toISOString(),
+          };
+        }
+
+        if (!apiKey) {
+          return json({ brandKit: buildFallbackBrandKit(mood, brief) });
+        }
+
+        const prompt = `You are a senior brand designer. Generate a complete brand kit for this project.
+
+Project brief: "${brief}"
+Project name: "${projectName || mood.name}"
+Selected mood: ${mood.name}
+Mood description: ${mood.description}
+Colour palette: primary=${mood.palette?.primary}, secondary=${mood.palette?.secondary}, accent=${mood.palette?.accent}
+Keywords: ${(mood.keywords || []).join(', ')}
+
+IMPORTANT:
+- Use EXACTLY these hex codes for primary/secondary/accent (do not change them)
+- Choose typography from this whitelist ONLY: "system-ui, -apple-system, sans-serif" | "Georgia, 'Times New Roman', serif" | "'Helvetica Neue', Arial, sans-serif" | "Garamond, Georgia, serif" | "Trebuchet MS, sans-serif"
+- All spacing values must be multiples of 8
+- Components must have real, usable CSS examples
+
+Return ONLY valid JSON matching this exact schema:
+{
+  "colors": {
+    "primary": "${mood.palette?.primary}",
+    "secondary": "${mood.palette?.secondary}",
+    "accent": "${mood.palette?.accent}",
+    "background": "<hex - derived from primary, suitable for page bg>",
+    "surface": "<hex - white or near-white for cards>",
+    "text": "<hex - dark colour for body text>",
+    "muted": "<hex - for secondary text, placeholders>",
+    "border": "<hex - subtle border colour>",
+    "success": "<hex>",
+    "warning": "<hex>",
+    "error": "<hex>"
+  },
+  "typography": {
+    "headingFont": "<from whitelist>",
+    "bodyFont": "<from whitelist>",
+    "headingWeight": <300|400|500|600>,
+    "bodyWeight": <300|400>,
+    "scaleRatio": <1.125|1.25|1.333>,
+    "baseSizePx": 16,
+    "lineHeightBody": 1.8,
+    "lineHeightHeading": 1.2,
+    "letterSpacingHeading": "-0.02em"
+  },
+  "spacing": {
+    "baseUnit": 8,
+    "scale": [4, 8, 12, 16, 24, 32, 48, 64, 96],
+    "containerMaxWidth": <960|1200|1440>,
+    "cardPadding": "1.5rem",
+    "sectionGap": "4rem",
+    "borderRadius": { "sm": "8px", "md": "12px", "lg": "16px", "full": "9999px" }
+  },
+  "components": [
+    { "name": "Primary Button", "description": "<1 sentence>", "cssExample": "<short CSS snippet>" },
+    { "name": "Card", "description": "<1 sentence>", "cssExample": "<short CSS snippet>" },
+    { "name": "Input Field", "description": "<1 sentence>", "cssExample": "<short CSS snippet>" },
+    { "name": "Nav Link", "description": "<1 sentence>", "cssExample": "<short CSS snippet>" },
+    { "name": "Badge/Tag", "description": "<1 sentence>", "cssExample": "<short CSS snippet>" }
+  ],
+  "layoutRules": [
+    "<rule 1>",
+    "<rule 2>",
+    "<rule 3>",
+    "<rule 4>"
+  ],
+  "moodName": "${mood.name}",
+  "brief": "${brief.replace(/"/g, '\\"')}",
+  "generatedAt": "${new Date().toISOString()}"
+}`;
+
+        try {
+          const text = await callClaude(apiKey, 'claude-sonnet-4-6', prompt, 2000);
+          const parsed = JSON.parse(extractJSON(text));
+          // Enforce palette colours are not overridden
+          if (mood.palette?.primary) parsed.colors.primary = mood.palette.primary;
+          if (mood.palette?.secondary) parsed.colors.secondary = mood.palette.secondary;
+          if (mood.palette?.accent) parsed.colors.accent = mood.palette.accent;
+          parsed.moodName = mood.name;
+          parsed.brief = brief;
+          parsed.generatedAt = new Date().toISOString();
+          return json({ brandKit: parsed });
+        } catch (err) {
+          console.error('generate-brand-kit error:', err.message);
+          return json({ brandKit: buildFallbackBrandKit(mood, brief) });
+        }
+      }
+
+      // POST /api/analyze-image — TODO Phase 3: call Claude Vision
       if (path === '/api/analyze-image' && request.method === 'POST') {
         try {
           const apiKey = env.CLAUDE_API_KEY;
