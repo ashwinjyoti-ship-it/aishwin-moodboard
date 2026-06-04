@@ -42,7 +42,6 @@ function getFallbackMoods(brief) {
   }).sort((a, b) => b.score - a.score);
 
   const chosen = scored.slice(0, 3).map(({ p }) => p);
-  // Ensure 3 distinct choices (fill from remaining if needed)
   while (chosen.length < 3) {
     const extra = PRESETS_DATA.find(p => !chosen.some(c => c.id === p.id));
     if (extra) chosen.push(extra);
@@ -83,7 +82,6 @@ async function callClaude(apiKey, model, prompt, maxTokens = 1024) {
 }
 
 function extractJSON(text) {
-  // Handle markdown code blocks and raw JSON
   const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (codeBlock) return codeBlock[1].trim();
   const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -162,7 +160,6 @@ export default {
         return json({ ok: true });
       }
 
-
       // POST /api/generate-typography-options
       if (path === '/api/generate-typography-options' && request.method === 'POST') {
         const { mood, brief } = await request.json();
@@ -204,9 +201,9 @@ Return ONLY valid JSON:
       "bodyFont": "<from whitelist>",
       "headingWeight": <300|400|500|600>,
       "bodyWeight": <300|400>,
-      "personality": "<3–5 word adjective phrase>",
-      "industryFit": "<2–3 industries>",
-      "specimen": "<4–6 word phrase that shows off this font>"
+      "personality": "<3-5 word adjective phrase>",
+      "industryFit": "<2-3 industries>",
+      "specimen": "<4-6 word phrase that shows off this font>"
     }
   ]
 }`;
@@ -401,7 +398,6 @@ Return ONLY valid JSON matching this exact schema:
         try {
           const text = await callClaude(apiKey, 'claude-sonnet-4-6', prompt, 2000);
           const parsed = JSON.parse(extractJSON(text));
-          // Enforce palette colours are not overridden
           if (mood.palette?.primary) parsed.colors.primary = mood.palette.primary;
           if (mood.palette?.secondary) parsed.colors.secondary = mood.palette.secondary;
           if (mood.palette?.accent) parsed.colors.accent = mood.palette.accent;
@@ -415,16 +411,15 @@ Return ONLY valid JSON matching this exact schema:
         }
       }
 
-      // POST /api/start-mockup — start Flux image generation via Replicate
+      // POST /api/start-mockup — initial generation via Flux 2 Pro
       if (path === '/api/start-mockup' && request.method === 'POST') {
         const replicateToken = env.REPLICATE_API_TOKEN;
         if (!replicateToken) {
           return json({ error: 'Mockup generation not configured' }, 403);
         }
-        const { sectionName, mood, brandKit, brief } = await request.json();
+        const { sectionName, mood, brandKit, brief, referenceImages } = await request.json();
         if (!sectionName || !mood) return json({ error: 'sectionName and mood required' }, 400);
 
-        // Build a Claude-powered visual prompt if CLAUDE_API_KEY is available
         let visualPrompt = `${sectionName} section design for ${brief || mood.name}. Primary color ${brandKit?.colors?.primary || mood.palette?.primary}, secondary ${brandKit?.colors?.secondary || mood.palette?.secondary}, accent ${brandKit?.colors?.accent || mood.palette?.accent}. ${mood.keywords?.slice(0, 3).join(', ')} aesthetic. Clean, professional, modern UI mockup.`;
 
         if (env.CLAUDE_API_KEY) {
@@ -441,8 +436,74 @@ Return ONLY the prompt text, nothing else.`;
           }
         }
 
+        const isPortrait = sectionName.toLowerCase().includes('mobile') || sectionName.toLowerCase().includes('app');
+
         try {
-          const replicateRes = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions', {
+          const fluxInput = {
+            prompt: visualPrompt,
+            aspect_ratio: isPortrait ? '9:16' : '16:9',
+            output_format: 'webp',
+            output_quality: 80,
+            safety_tolerance: 2,
+          };
+
+          if (Array.isArray(referenceImages) && referenceImages.length > 0) {
+            fluxInput.image_prompt = referenceImages.slice(0, 8)[0];
+            fluxInput.image_prompt_strength = 0.3;
+          }
+
+          const replicateRes = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-pro-1.1/predictions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${replicateToken}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'wait',
+            },
+            body: JSON.stringify({ input: fluxInput }),
+          });
+
+          const prediction = await replicateRes.json();
+
+          if (!replicateRes.ok) {
+            return json({ error: prediction.detail || 'Replicate error' }, 500);
+          }
+
+          if (prediction.status === 'succeeded' && prediction.output) {
+            const imageUrl = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+            return json({ status: 'succeeded', imageUrl, predictionId: prediction.id });
+          }
+
+          return json({ status: prediction.status, predictionId: prediction.id });
+        } catch (err) {
+          return json({ error: err.message }, 500);
+        }
+      }
+
+      // POST /api/refine-mockup — iterative editing via Flux Kontext Max
+      if (path === '/api/refine-mockup' && request.method === 'POST') {
+        const replicateToken = env.REPLICATE_API_TOKEN;
+        if (!replicateToken) return json({ error: 'Mockup generation not configured' }, 403);
+
+        const { imageUrl, instruction, brandKit, mood } = await request.json();
+        if (!imageUrl || !instruction) return json({ error: 'imageUrl and instruction required' }, 400);
+
+        let editPrompt = instruction.trim();
+        if (env.CLAUDE_API_KEY && brandKit) {
+          try {
+            const claudePrompt = `Rewrite this image edit instruction as a precise Flux Kontext prompt (max 150 chars).
+Instruction: "${instruction}"
+Brand accent colour: ${brandKit.colors?.accent}
+Mood: ${mood?.name || ''}
+Keep only what needs to change, preserve everything else. Return ONLY the prompt.`;
+            const text = await callClaude(env.CLAUDE_API_KEY, 'claude-haiku-4-5-20251001', claudePrompt, 200);
+            if (text && text.length > 10) editPrompt = text.trim();
+          } catch {
+            // use raw instruction
+          }
+        }
+
+        try {
+          const replicateRes = await fetch('https://api.replicate.com/v1/models/black-forest-labs/flux-kontext-max/predictions', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${replicateToken}`,
@@ -451,11 +512,11 @@ Return ONLY the prompt text, nothing else.`;
             },
             body: JSON.stringify({
               input: {
-                prompt: visualPrompt,
-                aspect_ratio: sectionName.toLowerCase().includes('mobile') || sectionName.toLowerCase().includes('app') ? '9:16' : '16:9',
-                num_outputs: 1,
+                input_image: imageUrl,
+                prompt: editPrompt,
                 output_format: 'webp',
                 output_quality: 80,
+                safety_tolerance: 2,
               },
             }),
           });
@@ -466,12 +527,11 @@ Return ONLY the prompt text, nothing else.`;
             return json({ error: prediction.detail || 'Replicate error' }, 500);
           }
 
-          // Synchronous result via Prefer: wait
-          if (prediction.status === 'succeeded' && prediction.output?.[0]) {
-            return json({ status: 'succeeded', imageUrl: prediction.output[0], predictionId: prediction.id });
+          if (prediction.status === 'succeeded' && prediction.output) {
+            const refined = Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+            return json({ status: 'succeeded', imageUrl: refined, predictionId: prediction.id });
           }
 
-          // Async: return predictionId for polling
           return json({ status: prediction.status, predictionId: prediction.id });
         } catch (err) {
           return json({ error: err.message }, 500);
@@ -502,7 +562,7 @@ Return ONLY the prompt text, nothing else.`;
         }
       }
 
-      // POST /api/analyze-image — TODO Phase 3: call Claude Vision
+      // POST /api/analyze-image
       if (path === '/api/analyze-image' && request.method === 'POST') {
         try {
           const apiKey = env.CLAUDE_API_KEY;
@@ -532,7 +592,6 @@ Return ONLY the prompt text, nothing else.`;
             imageBase64 = bufferToBase64(buffer);
           }
 
-          // Normalise media type to Claude-supported values
           const supportedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
           if (!supportedTypes.includes(mediaType)) mediaType = 'image/jpeg';
 
@@ -566,7 +625,6 @@ Return ONLY the prompt text, nothing else.`;
           const claudeData = await claudeRes.json();
           const text = claudeData.content?.[0]?.text || '';
 
-          // Extract JSON from response (strip any markdown code fences if present)
           const jsonMatch = text.match(/\{[\s\S]*\}/);
           if (!jsonMatch) throw new Error('No JSON in Claude response');
           const parsed = JSON.parse(jsonMatch[0]);
@@ -577,12 +635,11 @@ Return ONLY the prompt text, nothing else.`;
             placeholder: false,
           });
         } catch (analysisErr) {
-          // Graceful fallback — don't block the user
           return json({ mood: ['natural', 'calm', 'balanced'], colors: ['#F5F3F0', '#5DADE2', '#D4A574'], placeholder: true });
         }
       }
 
-      // GET /api/search-unsplash — TODO Phase 3: call Unsplash API
+      // GET /api/search-unsplash
       if (path === '/api/search-unsplash' && request.method === 'GET') {
         const q = url.searchParams.get('q') || 'wellness';
         const count = parseInt(url.searchParams.get('count') || '5', 10);
@@ -600,13 +657,11 @@ Return ONLY the prompt text, nothing else.`;
       // POST /api/suggest-sections
       if (path === '/api/suggest-sections' && request.method === 'POST') {
         const body = await request.json();
-        // Accept either categories[] (new) or category string (legacy)
         const categories = Array.isArray(body.categories)
           ? body.categories
           : body.category ? [body.category] : [];
         const suggestions = getSectionSuggestions(categories, body.presetId);
 
-        // Append a Mood & Texture section if keywords are provided
         const keywords = Array.isArray(body.keywords) ? body.keywords : [];
         if (keywords.length > 0) {
           const presetName = body.presetName || '';
@@ -690,11 +745,7 @@ Return ONLY the prompt text, nothing else.`;
             });
 
             if (response.errors || !response.response) {
-              results[section.id] = {
-                success: false,
-                message: 'Failed to fetch images',
-                images: [],
-              };
+              results[section.id] = { success: false, message: 'Failed to fetch images', images: [] };
             } else {
               results[section.id] = {
                 success: true,
@@ -718,7 +769,7 @@ Return ONLY the prompt text, nothing else.`;
         return json(results);
       }
 
-      // POST /api/rank-presets — Claude ranks presets by keywords
+      // POST /api/rank-presets
       if (path === '/api/rank-presets' && request.method === 'POST') {
         try {
           const body = await request.json();
@@ -726,7 +777,6 @@ Return ONLY the prompt text, nothing else.`;
           const apiKey = env.CLAUDE_API_KEY;
 
           if (!apiKey || presetList.length === 0) {
-            // Fallback: return presets with equal scores (preserve original order)
             return json(presetList.map(p => ({ presetId: p.id, score: 5, description: p.description })));
           }
 
@@ -873,7 +923,6 @@ function bufferToBase64(buffer) {
 }
 
 function getSectionSuggestions(categories, presetId) {
-  // categories is string[] (may be empty or contain a single freetext entry for "Other")
   const preset = (presetId || '').toLowerCase();
 
   const isCalm = preset.includes('serene') || preset.includes('sage') || preset.includes('lavender') || preset.includes('rose');
@@ -956,8 +1005,6 @@ function getSectionSuggestions(categories, presetId) {
     { name: 'Environment', query: `modern studio space interior ${modifier}`, count: 3 },
   ];
 
-  // For each selected category, fuzzy-match to a map key and take top 2 sections.
-  // Deduplicate by section name, cap at 8 total.
   const seen = new Set();
   const result = [];
 
@@ -979,7 +1026,6 @@ function getSectionSuggestions(categories, presetId) {
     if (result.length >= 8) break;
   }
 
-  // Fallback: no categories matched at all
   if (result.length === 0) {
     return defaultSections.map((s, i) => ({ ...s, id: `section-${i}`, images: [], approved: false }));
   }
